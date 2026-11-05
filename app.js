@@ -1,4 +1,4 @@
-const WORKER='https://test1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -194,7 +194,7 @@ async function fetchJson(url){
 async function load(kind=active,force=false){
  active=kind;
  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.kind===kind));
- {const a=document.querySelector&&document.querySelector('#tabs button.active');if(a&&a.scrollIntoView)a.scrollIntoView({inline:'center',block:'nearest'})}
+ {const a=document.querySelector&&document.querySelector('#tabs button.active');if(a&&a.scrollIntoView&&typeof window!=='undefined'&&window.innerWidth>700)a.scrollIntoView({inline:'center',block:'nearest'})}
  const cfg=kinds[kind];$('summary-title').textContent=cfg.title;$('list-title').textContent=cfg.title;$('list-desc').textContent=cfg.desc;$('metric-head').textContent=cfg.metric;
  if(!cache[kind])$('rows').innerHTML='<div class="empty">순위를 불러오는 중입니다…</div>';
  try{
@@ -313,7 +313,7 @@ document.addEventListener('click',e=>{
 });
 setInterval(()=>{if(!document.hidden)load(active,true)},60000);
 
-(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V13)</a>';document.body.appendChild(b)})();
+(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V14)</a>';document.body.appendChild(b)})();
 document.addEventListener('click',e=>{
  if(e.target.id==='dbgL'){e.preventDefault();let p=document.getElementById('dbgP');if(!p){p=document.createElement('div');p.id='dbgP';p.className='dbgp';document.body.appendChild(p)}
   const x=cur.slice(0,3).map(y=>({name:y.name,price:y.price,prev:y.prev,diff:y.diff,rate:y.rate&&+y.rate.toFixed(2),basis:y.basis}));
