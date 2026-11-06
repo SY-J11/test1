@@ -1,4 +1,4 @@
-const WORKER='https://test1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -9,10 +9,10 @@ const kinds={
  up:{title:'상승 상위 50',desc:'당일 등락률 높은 순',metric:'등락률',order:'up'},
  flat:{title:'보합 종목',desc:'등락 없는 종목 · 거래대금 순',metric:'거래대금',derived:true},
  down:{title:'하락 상위 50',desc:'당일 등락률 낮은 순',metric:'등락률',order:'down'},
- volSurge:{title:'거래량 급증 50',desc:'전일 대비 거래량 증가율 높은 순',metric:'거래량 증감',derived:true},
- volDrop:{title:'거래량 급감 50',desc:'전일 대비 거래량 감소율 큰 순',metric:'거래량 증감',derived:true},
- high52:{title:'52주 최고 종목',desc:'당일 52주 최고가 기록 · 거래대금 순',metric:'52주 최고',derived:true},
- low52:{title:'52주 최저 종목',desc:'당일 52주 최저가 기록 · 거래대금 순',metric:'52주 최저',derived:true}
+ volSurge:{title:'거래량 급증 50',desc:'전일 대비 거래량 증가율 높은 순 · 네이버 목록',metric:'거래량 증감',order:'upperQuantTop'},
+ volDrop:{title:'거래량 급감 50',desc:'전일 대비 거래량 감소율 큰 순 · 네이버 목록',metric:'거래량 증감',order:'lowerQuantTop'},
+ high52:{title:'52주 최고 종목',desc:'52주 최고가 기록 종목 · 네이버 목록',metric:'52주 최고',order:'high52week'},
+ low52:{title:'52주 최저 종목',desc:'52주 최저가 기록 종목 · 네이버 목록',metric:'52주 최저',order:'low52week'}
 };
 let active='priceTop',market='ALL',cache={};
 // 종목코드 우선 분류. 회사명 키워드 추정보다 정확한 코드 매핑을 먼저 적용합니다.
@@ -204,7 +204,7 @@ async function load(kind=active,force=false){
   else{
    const U=o=>ordUrl(o,market);
    const mn=ORD[kind]?1:10;
-   const urls=ORD[kind]?[U(ORD[kind])]:kind==='popular'?[U('top'),`${DESKTOP}/api/domestic/market/searchTop?nationType=KOR&startIdx=0&pageSize=50`]:[U(cfg.order)];
+   const urls=ORD[kind]?[U(ORD[kind])]:kind==='popular'?[U('searchTop'),U('top')]:[U(cfg.order)];
    let lastErr;const errs=[];data=[];
    for(const u of urls){try{const d=getRows(await fetchJson(u));if(d.length>=mn){data=d;dbg.src[kind]=ORD[kind]?'저장된 이름 '+ORD[kind]:u.includes('searchTop')?'searchTop':'stocklist';break}}catch(e){lastErr=e;errs.push((u.match(/orderType=(\w+)/)||u.match(/listingType=(\w+)/)||u.match(/market\/([\w\/]+)/)||[0,'?'])[1]+' '+String(e.message).replace(/\D+/g,' ').trim())}}
    if(data.length<mn&&lastErr){if(kind==='popular'&&!ORD.popular&&shouldProbe('popular')){$('rows').innerHTML='<div class="empty">인기 종목 주소를 자동으로 찾는 중입니다…</div>';const f=await probeKind('popular');if(f){ORD.popular=f;svLS('order_map_v1',ORD);return load(kind,true)}}throw new Error('데이터 요청 오류 ('+errs.join(', ')+')')}
@@ -256,10 +256,7 @@ function agg(list){
 const cls2=v=>v>0?'up':v<0?'down':'';
 let sortBy='rank',secF=null,secOpen=false,minVal=0,hlMode='intra';
 const cls3=v=>v>0?'up':v<0?'down':'flat';
-function renderOpts(){const el=$('opts');if(!el)return;const a=active;let h='';
- if(a==='volSurge'||a==='volDrop')h='<small>최소 거래대금</small>'+[[0,'제한 없음'],[1e8,'1억↑'],[1e9,'10억↑'],[5e9,'50억↑']].map(([v,t])=>`<button data-opt="min:${v}" class="${minVal===v?'selected':''}">${t}</button>`).join('');
- else if(a==='high52'||a==='low52')h='<small>기준</small>'+[['intra',a==='high52'?'장중 고가':'장중 저가'],['close','현재가(종가)']].map(([v,t])=>`<button data-opt="mode:${v}" class="${hlMode===v?'selected':''}">${t}</button>`).join('');
- el.hidden=!h;el.innerHTML=h}
+function renderOpts(){const el=$('opts');if(el){el.hidden=true;el.innerHTML=''}}
 function render(data){
  renderOpts();
  if(kinds[active].derived)$('list-desc').textContent=kinds[active].desc+(ORD[active]?' · 네이버 목록':UNI?' · 전체 '+UNI.length+'종목 기준 계산'+((active==='volSurge'||active==='volDrop')&&minVal?' · 거래대금 '+money(minVal)+' 이상':''):'');
@@ -313,7 +310,7 @@ document.addEventListener('click',e=>{
 });
 setInterval(()=>{if(!document.hidden)load(active,true)},60000);
 
-(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V14)</a>';document.body.appendChild(b)})();
+(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V15)</a>';document.body.appendChild(b)})();
 document.addEventListener('click',e=>{
  if(e.target.id==='dbgL'){e.preventDefault();let p=document.getElementById('dbgP');if(!p){p=document.createElement('div');p.id='dbgP';p.className='dbgp';document.body.appendChild(p)}
   const x=cur.slice(0,3).map(y=>({name:y.name,price:y.price,prev:y.prev,diff:y.diff,rate:y.rate&&+y.rate.toFixed(2),basis:y.basis}));
@@ -335,7 +332,7 @@ function ordUrl(o,mk='ALL'){
  return `${D}domestic/market/stock/default?tradeType=KRX&marketType=${mk}&orderType=${o}&startIdx=0&pageSize=100`;
 }
 const CAND={
- popular:['top','searchTop','popular','path:searchTop','path:stock/searchTop','path:popular','lt:popular','lt:searchTop','lt:popularDesc','hit','hot','interest','search','view'],
+ popular:['searchTop','top','popular','path:searchTop','path:stock/searchTop','path:popular','lt:popular','lt:searchTop','lt:popularDesc','hit','hot','interest','search','view'],
  flat:['steady','unchanged','lt:unchanged','lt:steady','lt:flat','flat','noChange','lt:noChange','even','same']
 };
 const sig=a=>a.slice(0,10).map(x=>x.code).join();
