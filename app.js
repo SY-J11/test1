@@ -1,4 +1,4 @@
-const WORKER='https://st.mcraft-tiger-574.workers.dev';
+const WORKER='https://test1.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
