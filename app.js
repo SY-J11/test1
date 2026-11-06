@@ -1,4 +1,4 @@
-const WORKER='https://test1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -240,7 +240,7 @@ function sd(x){const f=x.diff!=null&&!x.unsure?x.diff:null;if(f!==null)return Ma
 function hiOK(x){return x.w52h>0&&((hlMode==='close'||!(x.hi>0))?x.price>=x.w52h:x.hi>=x.w52h)}
 function loOK(x){return x.w52l>0&&((hlMode==='close'||!(x.lo>0))?x.price<=x.w52l:x.lo<=x.w52l)}
 function derive(kind,uni){
- const L=uni.filter(x=>!isEtf(x)&&!x.halt&&x.price>0),vol=x=>x.volume==null||x.volume>0,L2=L.filter(x=>x.volume>0);
+ const L=uni.filter(x=>(!exEtf||!isEtf(x))&&!x.halt&&x.price>0),vol=x=>x.volume==null||x.volume>0,L2=L.filter(x=>x.volume>0);
  const val=x=>x.value!=null?x.value:(x.volume>0&&x.price>0?x.volume*x.price:0),byV=(a,b)=>val(b)-val(a);
  if(kind==='flat')return L.filter(x=>vol(x)&&sd(x)===0).sort(byV);
  if(kind==='volSurge')return L2.filter(x=>x.qr!=null&&x.pq>0&&x.qr>0&&(x.value||0)>=minVal).sort((a,b)=>b.qr-a.qr);
@@ -302,7 +302,7 @@ function agg(list){
  return {tot,W,avg:list.reduce((s,x)=>s+(x.rate||0)*w(x),0)/W,arr:Object.entries(g).map(([s,a])=>({s,n:a.n,share:a.w/W*100,avg:a.w?a.rw/a.w:0,top:a.top.name})).sort((a,b)=>b.share-a.share||b.n-a.n)};
 }
 const cls2=v=>v>0?'up':v<0?'down':'';
-let sortBy='rank',secF=null,secOpen=false,minVal=0,hlMode='intra';
+let exEtf=false,sortBy='rank',secF=null,secOpen=false,minVal=0,hlMode='intra';
 const cls3=v=>v>0?'up':v<0?'down':'flat';
 function renderOpts(){const el=$('opts');if(el){el.hidden=true;el.innerHTML=''}}
 function render(data){
@@ -310,7 +310,7 @@ function render(data){
  
  data.forEach(x=>{const e=EXT[x.code];if(!e)return;if(x.value==null&&e.value!=null)x.value=e.value;if(x.unsure&&e.prev>0&&x.price!=null){x.prev=e.prev;x.diff=x.price-e.prev;x.rate=x.diff/e.prev*100;x.basis='전일종가(상세조회)';x.unsure=false}});
  data.forEach(x=>{[x.sector,x.detail,x.src]=classify(x)});
- const rows=(market==='ALL'?data:data.filter(x=>!x.market||x.market.includes(market))).filter(x=>!isEtf(x));
+ const rows=(market==='ALL'?data:data.filter(x=>!x.market||x.market.includes(market))).filter(x=>!exEtf||!isEtf(x));
  const base=rows.slice(0,N);base.forEach((x,i)=>x.rk=i+1);cur=base;
  if(secF&&!base.some(x=>x.sector===secF))secF=null;
  const up=base.filter(x=>sd(x)===1).length,down=base.filter(x=>sd(x)===-1).length,flat=base.filter(x=>sd(x)===0).length;
@@ -346,6 +346,7 @@ function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;',
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-kind]');if(b){market='ALL';document.querySelectorAll('.filters button').forEach(x=>x.classList.toggle('selected',x.dataset.market==='ALL'));load(b.dataset.kind)}});
 document.querySelectorAll('.filters button').forEach(b=>b.addEventListener('click',()=>{market=b.dataset.market;document.querySelectorAll('.filters button').forEach(x=>x.classList.toggle('selected',x===b));cache[active]=null;load(active,true)}));
 $('refresh').addEventListener('click',()=>load(active,true));
+$('etf-toggle').addEventListener('click',()=>{exEtf=!exEtf;const b=$('etf-toggle');b.classList.toggle('on',exEtf);b.setAttribute('aria-pressed',exEtf);b.textContent=exEtf?'✓ ETF·ETN 제외 중 (누르면 포함)':'ETF·ETN 제외하기';if(cache[active])render(cache[active]);else load(active,true)});
 $('cnt-tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-n]');if(!b)return;N=+b.dataset.n;document.querySelectorAll('#cnt-tabs button').forEach(x=>x.classList.toggle('active',x===b));$('list-title').textContent=ttl(active);if(cache[active])render(cache[active])});
 load();
 
@@ -358,7 +359,7 @@ document.addEventListener('click',e=>{
 });
 setInterval(()=>{if(!document.hidden)load(active,true)},60000);
 
-(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V17)</a>';document.body.appendChild(b)})();
+(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V18)</a>';document.body.appendChild(b)})();
 document.addEventListener('click',e=>{
  if(e.target.id==='dbgL'){e.preventDefault();let p=document.getElementById('dbgP');if(!p){p=document.createElement('div');p.id='dbgP';p.className='dbgp';document.body.appendChild(p)}
   const x=cur.slice(0,3).map(y=>({name:y.name,price:y.price,prev:y.prev,diff:y.diff,rate:y.rate&&+y.rate.toFixed(2),basis:y.basis}));

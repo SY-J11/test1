@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f3f6fb"><title>국내 주식 랭킹 인사이트</title>
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="stylesheet" href="style.css?v=18">
 <link rel="apple-touch-icon" href="./Stock_r.png">
 </head>
 <body>
@@ -26,17 +26,18 @@
 </nav>
 <nav class="cnt-tabs" id="cnt-tabs" aria-label="조회 종목 수"><button class="active" data-n="20">20개 종목</button><button data-n="50">50개 종목</button><button data-n="100">100개 종목</button></nav>
 <section class="board" aria-label="상승 / 보합 / 하락"><div class="bu"><span>상승</span><b id="b-up" class="up">0</b></div><div class="bf"><span>보합</span><b id="b-flat" class="flat">0</b></div><div class="bdn"><span>하락</span><b id="b-down" class="down">0</b></div></section>
+<div class="etf-opt"><button id="etf-toggle" type="button" aria-pressed="false">ETF·ETN 제외하기</button></div>
 <nav class="anchors"><a href="#trend">매매 트렌드</a><a href="#sectors">섹터 분석</a><a href="#list">종목 리스트</a></nav>
 <section class="sector-card" id="trend"><div class="section-head"><div><h2>금일 매매 트렌드</h2><p>현재 목록 자동 요약 · 참고용 통계</p></div></div><ul id="trend-list" class="trend"><li>데이터를 불러오는 중입니다.</li></ul></section>
 <section class="sector-card" id="sectors"><div class="section-head"><div><h2>섹터 분석</h2><p>비중 = 거래대금(없으면 종목 수) · 평균 = 가중 등락률</p></div><span id="sector-total">—</span></div><div id="sector-list" class="sector-list"><div class="empty">데이터를 불러오는 중입니다.</div></div><div id="classify-note" class="notice"></div></section>
 <section class="list-card" id="list">
 <div class="section-head"><div><h2 id="list-title">거래대금 상위 20</h2><p id="list-desc">당일 누적 거래대금 순</p></div><div class="filters"><button class="selected" data-market="ALL">전체</button><button data-market="KOSPI">코스피</button><button data-market="KOSDAQ">코스닥</button></div></div>
-<div id="opts" class="sorts" hidden></div><div class="sorts"><button data-sort="rank" class="selected">기본순</button><button data-sort="rate">등락률순</button><small>60초 자동 갱신 · 전일 종가 대비 · ETF·ETN 제외</small></div><div id="sec-filter" class="notice" hidden></div><div id="rows" class="cards"></div><span id="metric-head" hidden></span>
+<div id="opts" class="sorts" hidden></div><div class="sorts"><button data-sort="rank" class="selected">기본순</button><button data-sort="rate">등락률순</button><small>60초 자동 갱신 · 전일 종가 대비</small></div><div id="sec-filter" class="notice" hidden></div><div id="rows" class="cards"></div><span id="metric-head" hidden></span>
 <div id="notice" class="notice">네이버 증권 공개 데이터를 불러옵니다. 실제 집계 시점과 거래소 반영 시점에 따라 HTS와 차이가 날 수 있습니다.</div>
 </section>
-<section class="method"><b>집계 기준</b><p>코스피·코스닥 전체, KRX 기준. 인기 종목은 네이버 증권의 검색 인기 순위를 사용합니다. ETF·ETN은 제외하고 일반 종목만 표시하며, 등락률은 직전 거래일 종가 대비입니다.</p></section>
+<section class="method"><b>집계 기준</b><p>코스피·코스닥 전체, KRX 기준. 인기 종목은 네이버 증권의 검색 인기 순위를 사용합니다. ETF·ETN을 포함해 네이버 목록 그대로 표시하며(상단 버튼으로 제외 가능), 등락률은 직전 거래일 종가 대비입니다.</p></section>
 </main>
 <footer>DATA SOURCE · <a href="https://stock.naver.com/market/stock/kr/stocklist/priceTop" target="_blank" rel="noopener">네이버 증권 실시간 랭킹</a></footer>
 </div>
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body></html>
