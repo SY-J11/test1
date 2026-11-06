@@ -7,12 +7,12 @@ const kinds={
  marketSum:{title:'시가총액 상위 {n}',desc:'시가총액 순',metric:'시가총액',order:'marketSum'},
  popular:{title:'인기 종목 {n}',desc:'네이버 증권 인기 종목 순',metric:'인기 지수',order:'popular'},
  up:{title:'상승 상위 {n}',desc:'당일 등락률 높은 순',metric:'등락률',order:'up'},
- flat:{title:'보합 종목',desc:'전일 종가와 같은 종목 · 거래대금 순',metric:'거래대금',derived:true},
+ flat:{title:'보합 종목',desc:'네이버 증권 보합 목록 기준',metric:'거래대금',order:'flat'},
  down:{title:'하락 상위 {n}',desc:'당일 등락률 낮은 순',metric:'등락률',order:'down'},
  volSurge:{title:'거래량 급증 {n}',desc:'전일 대비 거래량 증가율 높은 순 · 네이버 목록',metric:'거래량 증감',order:'upperQuantTop'},
  volDrop:{title:'거래량 급감 {n}',desc:'전일 대비 거래량 감소율 큰 순 · 네이버 목록',metric:'거래량 증감',order:'lowerQuantTop'},
- high52:{title:'52주 최고 종목',desc:'당일 고가가 52주 최고가 이상인 종목 · 거래대금 순',metric:'52주 최고',order:'high52week'},
- low52:{title:'52주 최저 종목',desc:'당일 저가가 52주 최저가 이하인 종목 · 거래대금 순',metric:'52주 최저',order:'low52week'}
+ high52:{title:'52주 최고 종목',desc:'네이버 증권 52주 최고 목록 기준',metric:'52주 최고',order:'high52week'},
+ low52:{title:'52주 최저 종목',desc:'네이버 증권 52주 최저 목록 기준',metric:'52주 최저',order:'low52week'}
 };
 let active='priceTop',market='ALL',cache={},N=20;
 const STRICT={flat:1,high52:1,low52:1};
@@ -84,7 +84,7 @@ const dbg={raw:[],ind:'',src:{}},EXT={};
 const LSK={ovr:'sector_override_v1',ind:'sector_naver_v1'};
 const ldLS=k=>{try{return JSON.parse(localStorage.getItem(k)||'{}')}catch(e){return {}}};
 const svLS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-let ovr=ldLS(LSK.ovr),indC=ldLS(LSK.ind),cur=[];const tried=new Set();let ORD=ldLS('order_map_v1');try{if(!localStorage.getItem('ord_clean_v13')){['volSurge','volDrop','high52','low52'].forEach(k=>delete ORD[k]);localStorage.setItem('order_map_v1',JSON.stringify(ORD));localStorage.setItem('ord_clean_v13','1')}}catch(e){}
+let ovr=ldLS(LSK.ovr),indC=ldLS(LSK.ind),cur=[];const tried=new Set();let ORD=ldLS('order_map_v1');try{if(!localStorage.getItem('ord_clean_v17')){['flat','volSurge','volDrop','high52','low52'].forEach(k=>delete ORD[k]);localStorage.setItem('order_map_v1',JSON.stringify(ORD));localStorage.setItem('ord_clean_v17','1')}}catch(e){}
 [[/소프트|시스템|정보통신|데이터|클라우드|인공지능|솔루션/,'IT·소프트웨어','소프트웨어·IT서비스·AI'],
  [/의료|메디|헬스|덴탈|임플란트/,'의료기기·헬스케어','의료기기·진단·헬스케어'],
  [/디스플레이|OLED|LED|광학|카메라|센서|이노텍|전자/,'전자부품·디스플레이','전자부품·디스플레이·센서'],
@@ -254,15 +254,40 @@ async function fetchRows(u){
  try{const d=getRows(await fetchJson(u));if(d.length)return d}catch(e){if(!/(pageSize|size)=200\b/.test(u))throw e}
  return getRows(await fetchJson(u.replace(/(pageSize|size)=200\b/,'$1=100')));
 }
+// 네이버 stocklist 탭 정렬 이름 후보 (앞에서부터 시도, 첫 번째로 검증을 통과한 이름을 사용)
+const ORDC={
+ flat:['flat','steady','unchanged','lt:flat','lt:steady','lt:unchanged','path:flat','path:steady'],
+ high52:['high52week','highPrice52week','week52High','high52','lt:high52week','lt:week52High'],
+ low52:['low52week','lowPrice52week','week52Low','low52','lt:low52week','lt:week52Low']
+};
+// 네이버가 준 목록 그대로 사용하되, 엉뚱한 목록(다른 탭과 같은 목록 등)이 오면 걸러냄
+const STRICT_OK={
+ flat:a=>a.length>=1&&a.slice(0,10).filter(x=>x.rate===0||x.diff===0||x.rate===null).length>=Math.min(a.length,10)*0.6,
+ high52:a=>a.length>=1&&(a.slice(0,10).some(x=>x.w52h>0)?a.slice(0,10).filter(x=>!(x.w52h>0)||!(x.price>0)||x.price>=x.w52h*0.9).length>=Math.min(a.length,10)*0.6:true),
+ low52:a=>a.length>=1&&(a.slice(0,10).some(x=>x.w52l>0)?a.slice(0,10).filter(x=>!(x.w52l>0)||!(x.price>0)||x.price<=x.w52l*1.1).length>=Math.min(a.length,10)*0.6:true)
+};
 async function loadStrict(kind){
- const o=ORD[kind]||kinds[kind].order;let list=[],uni=[],err=null;
- if(o){try{list=await fetchRows(ordUrl(o,market,200))}catch(e){err=e}}
- try{uni=await loadUniverse()}catch(e){err=e}
- if(!list.length&&!uni.length)throw err||new Error('종목 데이터를 불러오지 못했습니다.');
- const m=new Map();uni.forEach(x=>m.set(x.code,x));
- list.forEach(x=>{const u=m.get(x.code);if(u)for(const k in u)if(x[k]==null||x[k]==='')x[k]=u[k];m.set(x.code,x)});
- dbg.src[kind]='전체 '+uni.length+'종목'+(list.length?' + 네이버 목록 '+list.length:'')+' 합쳐 검증';
- return derive(kind,[...m.values()]);
+ const cands=[...new Set([ORD[kind],kinds[kind].order,...(ORDC[kind]||[])].filter(Boolean))];
+ const base=await getBase();let list=[],used='',lastErr=null;
+ for(const o of cands){
+  try{
+   const d=await fetchRows(ordUrl(o,market,200));
+   if(d.length&&!base.includes(sig(d))&&STRICT_OK[kind](d)){list=d;used=o;break}
+  }catch(e){lastErr=e}
+ }
+ if(list.length){
+  if(ORD[kind]!==used){ORD[kind]=used;svLS('order_map_v1',ORD)}
+  dbg.src[kind]='네이버 목록 '+used+' · '+list.length+'종목 (필터 없이 그대로 표시)';
+  // 목록에 없는 값(전일종가·거래대금 등)만 전체 종목 데이터로 보완. 종목 선정에는 영향 없음
+  if(UNI){const m=new Map(UNI.map(x=>[x.code,x]));list.forEach(x=>{const u=m.get(x.code);if(u)for(const k in u)if(x[k]==null||x[k]==='')x[k]=u[k]})}
+  return list;
+ }
+ // 네이버 목록을 못 찾은 경우에만 기존 계산 방식으로 대체
+ if(ORD[kind]){delete ORD[kind];svLS('order_map_v1',ORD)}
+ let uni=[];try{uni=await loadUniverse()}catch(e){lastErr=e}
+ if(!uni.length)throw lastErr||new Error('종목 데이터를 불러오지 못했습니다.');
+ dbg.src[kind]='네이버 목록을 찾지 못해 전체 '+uni.length+'종목에서 계산(대체)';
+ return derive(kind,uni);
 }
 const mo=x=>{switch(active){
  case 'priceTop':return '대금 '+money(x.value);case 'quantTop':return fmt(x.volume);case 'marketSum':return money(x.cap);
@@ -282,7 +307,7 @@ const cls3=v=>v>0?'up':v<0?'down':'flat';
 function renderOpts(){const el=$('opts');if(el){el.hidden=true;el.innerHTML=''}}
 function render(data){
  renderOpts();
- if(STRICT[active])$('list-desc').textContent=kinds[active].desc+(UNI?' · 전체 '+UNI.length+'종목 기준 검증':'');
+ 
  data.forEach(x=>{const e=EXT[x.code];if(!e)return;if(x.value==null&&e.value!=null)x.value=e.value;if(x.unsure&&e.prev>0&&x.price!=null){x.prev=e.prev;x.diff=x.price-e.prev;x.rate=x.diff/e.prev*100;x.basis='전일종가(상세조회)';x.unsure=false}});
  data.forEach(x=>{[x.sector,x.detail,x.src]=classify(x)});
  const rows=(market==='ALL'?data:data.filter(x=>!x.market||x.market.includes(market))).filter(x=>!isEtf(x));
@@ -333,7 +358,7 @@ document.addEventListener('click',e=>{
 });
 setInterval(()=>{if(!document.hidden)load(active,true)},60000);
 
-(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V16)</a>';document.body.appendChild(b)})();
+(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V17)</a>';document.body.appendChild(b)})();
 document.addEventListener('click',e=>{
  if(e.target.id==='dbgL'){e.preventDefault();let p=document.getElementById('dbgP');if(!p){p=document.createElement('div');p.id='dbgP';p.className='dbgp';document.body.appendChild(p)}
   const x=cur.slice(0,3).map(y=>({name:y.name,price:y.price,prev:y.prev,diff:y.diff,rate:y.rate&&+y.rate.toFixed(2),basis:y.basis}));

@@ -5,7 +5,7 @@
 .sec-t{width:100%;border-collapse:collapse;font-size:13px}.sec-t th,.sec-t td{padding:7px 6px;text-align:left;border-bottom:1px solid #eef1f6}.sec-t .bar{min-width:60px}
 td.ed{cursor:pointer}#etfToggle{margin-left:6px}@media(max-width:560px){.stat6{grid-template-columns:repeat(2,1fr)}}
 
-.up{color:#e5322d!important}.down{color:#1f63e8!important}.flat{color:#111!important}
+.up{color:#e5322d!important}.down{color:#1f63e8!important}.flat{color:#8b93a1!important}
 .cards{display:block}.it{padding:11px 12px;border-top:1px solid #eef1f5}.r1{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center}.rk{color:#8995a5;font-weight:800;text-align:center;font-size:12px}
 .nm b{font-size:14px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}.nm small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
 .px{text-align:right}.px b{display:block;font-size:16px;font-variant-numeric:tabular-nums}.px small{display:block;font-size:11px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
@@ -45,4 +45,4 @@ td.ed{cursor:pointer}#etfToggle{margin-left:6px}@media(max-width:560px){.stat6{g
 
 /* 조회 개수 탭 + 상승/보합/하락 상황판 */
 .cnt-tabs{display:flex;gap:6px;margin:0 0 9px}.cnt-tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 4px;color:#657286;font-weight:700;font-size:12px}.cnt-tabs button.active{background:var(--navy);border-color:var(--navy);color:#fff}
-.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.board>div{border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;background:var(--card)}.board .bu{background:#fff6f6}.board .bf{background:#f6f7f9}.board .bdn{background:#f3f7ff}.board span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px}.board b{display:block;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.board>div{border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;background:var(--card)}.board .bu{background:#fff6f6}.board .bf{background:#f4f5f7}.board .bf span{color:#8b93a1}.board .bdn{background:#f3f7ff}.board span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px}.board b{display:block;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
