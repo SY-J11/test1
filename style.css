@@ -42,3 +42,7 @@ td.ed{cursor:pointer}#etfToggle{margin-left:6px}@media(max-width:560px){.stat6{g
  .tabs button{flex:none!important;min-width:0;white-space:normal!important;word-break:keep-all;line-height:1.25;padding:11px 2px!important;font-size:12px;grid-column:span 3;text-align:center}
  .tabs button:nth-child(n+5):nth-child(-n+7){grid-column:span 4}
 }
+
+/* 조회 개수 탭 + 상승/보합/하락 상황판 */
+.cnt-tabs{display:flex;gap:6px;margin:0 0 9px}.cnt-tabs button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 4px;color:#657286;font-weight:700;font-size:12px}.cnt-tabs button.active{background:var(--navy);border-color:var(--navy);color:#fff}
+.board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}.board>div{border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;background:var(--card)}.board .bu{background:#fff6f6}.board .bf{background:#f6f7f9}.board .bdn{background:#f3f7ff}.board span{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px}.board b{display:block;font-size:28px;line-height:1;font-variant-numeric:tabular-nums}
