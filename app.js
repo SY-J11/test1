@@ -1,4 +1,4 @@
-const WORKER='https://test1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -357,13 +357,13 @@ document.addEventListener('click',e=>{
  if(e.target.id==='clr'){e.preventDefault();secF=null;render(cache[active]||[]);return}
  const s=e.target.closest('button[data-sort]');if(s){sortBy=s.dataset.sort;document.querySelectorAll('.sorts button').forEach(b=>b.classList.toggle('selected',b===s));render(cache[active]||[])}
 });
-let autoOn=true;try{autoOn=localStorage.getItem('auto_refresh')!=='off'}catch(e){}
+let autoOn=false;
 function paintAuto(){const b=$('auto-toggle');b.classList.toggle('on',autoOn);b.setAttribute('aria-pressed',autoOn);b.textContent=autoOn?'자동갱신 켜짐 (60초)':'자동갱신 꺼짐 (수동)';$('auto-note').textContent=autoOn?'60초 자동 갱신':'자동 갱신 꺼짐 · ↻ 새로고침으로 갱신'}
-$('auto-toggle').addEventListener('click',()=>{autoOn=!autoOn;try{localStorage.setItem('auto_refresh',autoOn?'on':'off')}catch(e){}paintAuto();if(autoOn)load(active,true)});
+$('auto-toggle').addEventListener('click',()=>{autoOn=!autoOn;paintAuto();if(autoOn)load(active,true)});
 paintAuto();
 setInterval(()=>{if(autoOn&&!document.hidden)load(active,true)},60000);
 
-(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V19)</a>';document.body.appendChild(b)})();
+(function(){const b=document.createElement('p');b.className='dbgbar';b.innerHTML='<a href="#" id="dbgL">데이터 점검 · 분류 백업 (V20)</a>';document.body.appendChild(b)})();
 document.addEventListener('click',e=>{
  if(e.target.id==='dbgL'){e.preventDefault();let p=document.getElementById('dbgP');if(!p){p=document.createElement('div');p.id='dbgP';p.className='dbgp';document.body.appendChild(p)}
   const x=cur.slice(0,3).map(y=>({name:y.name,price:y.price,prev:y.prev,diff:y.diff,rate:y.rate&&+y.rate.toFixed(2),basis:y.basis}));
