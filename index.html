@@ -1,43 +1,60 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f3f6fb"><title>국내 주식 랭킹 인사이트</title>
-<link rel="stylesheet" href="style.css?v=20">
-<link rel="apple-touch-icon" href="./Stock_r.png">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f3f5f9">
+<title>연준 인물 모니터 | FEDERAL RESERVE MONITOR</title>
+<link rel="stylesheet" href="fed.css?v=1">
 </head>
 <body>
 <div class="app">
-<header><div class="brand"><span class="brand-mark">↗</span><div><b>오늘의 주요 거래 종목</b><small>TODAY'S MOVERS</small></div></div><button id="refresh" class="refresh">↻ 새로고침</button></header>
-<main>
-<section class="intro"><div><span class="eyebrow">MARKET SCANNER</span><h1>오늘의 국내 주식 랭킹</h1><p>네이버 증권 기준 · KRX 전체 시장</p></div><div class="updated"><span class="live-dot"></span><span id="updated">데이터 확인 중</span></div></section>
-<nav class="tabs" id="tabs" aria-label="종목 랭킹">
-<button class="active" data-kind="priceTop">거래대금 상위</button>
-<button data-kind="quantTop">거래량 상위</button>
-<button data-kind="marketSum">시가총액</button>
-<button data-kind="popular">인기 종목</button>
-<button data-kind="up">상승</button>
-<button data-kind="flat">보합</button>
-<button data-kind="down">하락</button>
-<button data-kind="volSurge">거래량 급증</button>
-<button data-kind="volDrop">거래량 급감</button>
-<button data-kind="high52">52주 최고</button>
-<button data-kind="low52">52주 최저</button>
-</nav>
-<nav class="cnt-tabs" id="cnt-tabs" aria-label="조회 종목 수"><button class="active" data-n="20">20개 종목</button><button data-n="50">50개 종목</button><button data-n="100">100개 종목</button></nav>
-<section class="board" aria-label="상승 / 보합 / 하락"><div class="bu"><span>상승</span><b id="b-up" class="up">0</b></div><div class="bf"><span>보합</span><b id="b-flat" class="flat">0</b></div><div class="bdn"><span>하락</span><b id="b-down" class="down">0</b></div></section>
-<div class="etf-opt"><button id="etf-toggle" type="button" aria-pressed="false">ETF·ETN 제외하기</button><button id="auto-toggle" type="button" aria-pressed="false">자동갱신 꺼짐 (수동)</button></div>
-<nav class="anchors"><a href="#trend">매매 트렌드</a><a href="#sectors">섹터 분석</a><a href="#list">종목 리스트</a></nav>
-<section class="sector-card" id="trend"><div class="section-head"><div><h2>금일 매매 트렌드</h2><p>현재 목록 자동 요약 · 참고용 통계</p></div></div><ul id="trend-list" class="trend"><li>데이터를 불러오는 중입니다.</li></ul></section>
-<section class="sector-card" id="sectors"><div class="section-head"><div><h2>섹터 분석</h2><p>비중 = 거래대금(없으면 종목 수) · 평균 = 가중 등락률</p></div><span id="sector-total">—</span></div><div id="sector-list" class="sector-list"><div class="empty">데이터를 불러오는 중입니다.</div></div><div id="classify-note" class="notice"></div></section>
-<section class="list-card" id="list">
-<div class="section-head"><div><h2 id="list-title">거래대금 상위 20</h2><p id="list-desc">당일 누적 거래대금 순</p></div><div class="filters"><button class="selected" data-market="ALL">전체</button><button data-market="KOSPI">코스피</button><button data-market="KOSDAQ">코스닥</button></div></div>
-<div id="opts" class="sorts" hidden></div><div class="sorts"><button data-sort="rank" class="selected">기본순</button><button data-sort="rate">등락률순</button><small><span id="auto-note">자동 갱신 꺼짐 · ↻ 새로고침으로 갱신</span> · 전일 종가 대비</small></div><div id="sec-filter" class="notice" hidden></div><div id="rows" class="cards"></div><span id="metric-head" hidden></span>
-<div id="notice" class="notice">네이버 증권 공개 데이터를 불러옵니다. 실제 집계 시점과 거래소 반영 시점에 따라 HTS와 차이가 날 수 있습니다.</div>
-</section>
-<section class="method"><b>집계 기준</b><p>코스피·코스닥 전체, KRX 기준. 인기 종목은 네이버 증권의 검색 인기 순위를 사용합니다. ETF·ETN을 포함해 네이버 목록 그대로 표시하며(상단 버튼으로 제외 가능), 등락률은 직전 거래일 종가 대비입니다.</p></section>
-</main>
-<footer>DATA SOURCE · <a href="https://stock.naver.com/market/stock/kr/stocklist/priceTop" target="_blank" rel="noopener">네이버 증권 실시간 랭킹</a></footer>
+  <header class="topbar">
+    <a class="brand" href="./index.html"><span class="brand-mark">F</span><span><b>연준 인물 모니터</b><small>FEDERAL RESERVE MONITOR</small></span></a>
+    <div class="top-actions"><span id="updatedAt" class="updated">공식 명단 확인 중</span><button id="themeBtn" class="icon-btn" type="button" aria-label="명암 전환">◐</button><button id="refreshBtn" class="icon-btn" type="button" aria-label="새로고침">↻</button></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div><span class="eyebrow">US MONETARY POLICY · PEOPLE TRACKER</span><h1>연준을 움직이는<br><em>핵심 인물</em>을 추적합니다</h1><p>현직 연준 이사회와 FOMC 구성원을 공식 명단으로 자동 갱신하고, 인물별 최신 뉴스를 모니터링합니다.</p></div>
+      <div class="hero-date"><span>OFFICIAL ROSTER</span><b id="rosterYear">—</b><small>Federal Reserve</small></div>
+    </section>
+
+    <section class="summary-grid">
+      <article class="summary-card"><span>BOARD OF GOVERNORS</span><b id="boardCount">—</b><small>연준 이사회</small></article>
+      <article class="summary-card"><span>FOMC VOTING MEMBERS</span><b id="fomcCount">—</b><small>투표권 보유 위원</small></article>
+      <article class="summary-card"><span>ALTERNATE MEMBERS</span><b id="alternateCount">—</b><small>대체 위원</small></article>
+    </section>
+
+    <nav class="tabs" aria-label="인물 구분">
+      <button class="tab active" data-tab="board">연준 이사 7명 <small>FED GOVERNORS</small></button>
+      <button class="tab" data-tab="fomc">FOMC Members <small>투표권 보유 위원</small></button>
+    </nav>
+
+    <section class="intro card">
+      <div><span class="eyebrow">CURRENT MEMBERSHIP</span><h2 id="sectionTitle">Federal Reserve Board of Governors</h2><p id="sectionDescription">연준 이사회 현직 구성원입니다. 인물 카드를 선택하면 해당 인물의 최신 뉴스 검색 결과를 확인할 수 있습니다.</p></div>
+      <div class="intro-links"><a href="https://www.federalreserve.gov/aboutthefed/bios/board/" target="_blank" rel="noopener">연준 이사 공식 명단 ↗</a><a href="https://www.federalreserve.gov/monetarypolicy/FOMC.htm" target="_blank" rel="noopener">FOMC 공식 명단 ↗</a></div>
+    </section>
+
+    <div class="content-layout">
+      <section class="people-area">
+        <div class="section-head"><div><span class="eyebrow">PEOPLE</span><h2 id="peopleHeading">현직 연준 이사</h2></div><input id="peopleSearch" type="search" placeholder="이름 또는 직책 검색" aria-label="인물 검색"></div>
+        <div id="peopleList" class="people-grid"><div class="loading">연준 공식 명단을 불러오고 있습니다.</div></div>
+        <section id="alternatesSection" class="alternates card" hidden><div class="section-head"><div><span class="eyebrow">NON-VOTING / ALTERNATES</span><h3>대체 위원</h3></div><span class="muted">FOMC Alternate Members</span></div><div id="alternatesList" class="alternate-list"></div></section>
+      </section>
+
+      <aside class="news-area card">
+        <div class="news-head"><div><span class="eyebrow">LATEST COVERAGE</span><h2 id="newsPerson">인물을 선택하세요</h2><p id="newsQuery">선택한 인물의 최신 뉴스 검색</p></div><button id="searchAgain" class="text-btn" type="button" disabled>다시 검색 ↻</button></div>
+        <div id="newsStatus" class="news-status">왼쪽에서 인물을 선택하면 관련 뉴스가 표시됩니다.</div>
+        <div id="newsList" class="news-list"></div>
+        <div class="news-foot"><span id="newsProvider">Google News · 다중 뉴스 검색</span><a id="googleSearch" href="#" target="_blank" rel="noopener" hidden>Google News에서 더 보기 ↗</a></div>
+      </aside>
+    </div>
+
+    <footer><span>자료 출처: Board of Governors · Federal Open Market Committee</span><span>명단 자동 확인 · 뉴스 검색 결과는 외부 매체 제공</span></footer>
+  </main>
 </div>
-<script src="app.js?v=20"></script>
-</body></html>
+<div id="toast" class="toast" role="status"></div>
+<script src="fed.js?v=1"></script>
+</body>
+</html>
