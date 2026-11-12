@@ -107,7 +107,7 @@
     newsBusy = true;
     const more = $("loadMoreNews");
     if (more) { more.disabled = true; more.textContent = "불러오는 중…"; }
-    if (!newsOffset) $("newsStatus").textContent = "Google News 최신순 검색 결과를 수집하고 있습니다…";
+    if (!newsOffset) $("newsStatus").textContent = "Google News·Bing·GDELT 등에서 최신 기사를 수집하고 있습니다…";
     try {
       const query = `"${person.name}" Federal Reserve OR FOMC`;
       const params = new URLSearchParams({ q: query, limit: "10", offset: String(newsOffset) });
@@ -124,7 +124,7 @@
         newsOffset += items.length;
       }
       if (more) { more.hidden = !data.hasMore; more.disabled = !data.hasMore; more.textContent = "기사 10개 더 보기 ↓"; }
-      $("newsProvider").textContent = data.provider || "Google News · RSS 검색";
+      $("newsProvider").textContent = data.provider || "해외 뉴스 검색";
     } catch (error) {
       if (requestId !== newsRequestId) return;
       $("newsStatus").textContent = `검색 결과를 불러오지 못했습니다: ${error.message}`;
@@ -138,10 +138,10 @@
     newsOffset = 0;
     $("newsPerson").textContent = person.name;
     $("newsQuery").textContent = `${personRole(person)} · ${person.institution}`;
-    $("newsStatus").textContent = "Google News 최신순 검색 결과를 불러오는 중…";
+    $("newsStatus").textContent = "해외 뉴스 검색 결과를 불러오는 중…";
     $("newsStatus").classList.remove("error");
     $("newsList").innerHTML = "";
-    $("newsProvider").textContent = "Google News · 검색 결과 수집 중";
+    $("newsProvider").textContent = "해외 뉴스 검색 · 수집 중";
     $("googleSearch").href = urls.news;
     $("googleSearch").textContent = "Google 뉴스 전체 결과 ↗";
     $("googleSearch").hidden = false;
