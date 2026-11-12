@@ -116,7 +116,7 @@
       const items = Array.isArray(data.items) ? data.items : [];
       if (!items.length && !newsOffset) {
         const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.slice(0, 3).join(" · ") : "";
-        $("newsStatus").textContent = `${data.error || "Google 검색 결과가 없습니다."}${diagnostics ? ` (${diagnostics})` : ""} 아래 Google 검색 링크에서 실시간 결과를 확인할 수 있습니다.`;
+        $("newsStatus").textContent = `${data.error || "검색 결과가 없습니다."}${diagnostics ? ` (${diagnostics})` : ""} 아래 Google 뉴스 검색 링크에서 전체 결과를 확인할 수 있습니다.`;
         $("newsStatus").classList.add("error");
         const fallback = document.createElement("article");
         fallback.className = "news-item news-fallback";
@@ -134,7 +134,7 @@
       $("newsProvider").textContent = data.provider || "Google News";
     } catch (error) {
       if (requestId !== newsRequestId) return;
-      $("newsStatus").textContent = `Google 뉴스 검색을 완료하지 못했습니다: ${error.message}`;
+      $("newsStatus").textContent = `뉴스 검색을 완료하지 못했습니다: ${error.message}`;
       $("newsStatus").classList.add("error");
       if (more) { more.hidden = false; more.disabled = false; more.textContent = "다시 불러오기 ↻"; }
     } finally { if (requestId === newsRequestId) { newsBusy = false; if (more && more.textContent === "불러오는 중…") more.textContent = "기사 5개 더 보기 ↓"; } }
@@ -148,7 +148,7 @@
     $("newsStatus").textContent = "Google News 검색 결과를 불러오는 중…";
     $("newsStatus").classList.remove("error");
     $("newsList").innerHTML = "";
-    $("newsProvider").textContent = "Google News · 검색 중";
+    $("newsProvider").textContent = "Google News 우선 · 실패 시 Bing News";
     $("googleSearch").href = urls.news;
     $("googleSearch").textContent = "Google 뉴스 전체 결과 ↗";
     $("googleSearch").hidden = false;
