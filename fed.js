@@ -83,27 +83,73 @@
       if (person) selectPerson(person);
     }));
   }
+  let newsOffset = 0;
+  let newsBusy = false;
+  let newsRequestId = 0;
+  let selectedNewsPerson = null;
+  function renderNewsItems(items, append = false) {
+    const list = $("newsList");
+    if (!append) list.innerHTML = "";
+    items.forEach((item, index) => {
+      const article = document.createElement("article"); article.className = "news-item";
+      const link = document.createElement("a"); link.href = item.url; link.target = "_blank"; link.rel = "noopener noreferrer"; link.textContent = item.title || "제목 없음";
+      const meta = document.createElement("div"); meta.className = "news-meta";
+      const source = document.createElement("span"); source.textContent = item.source || "Google News";
+      const date = document.createElement("span"); date.textContent = dateText(item.publishedAt);
+      const number = document.createElement("span"); number.textContent = `#${newsOffset + index + 1}`;
+      meta.append(number, source, date); article.append(link, meta); list.appendChild(article);
+    });
+  }
+  async function loadPersonNews(person, reset = false) {
+    if (newsBusy && !reset) return;
+    if (reset) { newsRequestId += 1; newsOffset = 0; $("newsList").innerHTML = ""; }
+    const requestId = newsRequestId;
+    newsBusy = true;
+    const more = $("loadMoreNews");
+    if (more) { more.disabled = true; more.textContent = "불러오는 중…"; }
+    if (!newsOffset) $("newsStatus").textContent = "Google News 최신순 검색 결과를 수집하고 있습니다…";
+    try {
+      const query = `"${person.name}" Federal Reserve OR FOMC`;
+      const params = new URLSearchParams({ q: query, limit: "10", offset: String(newsOffset) });
+      const data = await getJSON(`${API_BASE}/api/person-news?${params}`);
+      if (requestId !== newsRequestId) return;
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length && !newsOffset) {
+        $("newsStatus").textContent = data.error || "표시할 검색 결과가 없습니다.";
+        $("newsStatus").classList.add("error");
+      } else {
+        $("newsStatus").classList.remove("error");
+        $("newsStatus").textContent = `${data.total || items.length}개 검색 결과 · ${data.provider || "Google News"} · 최신순`;
+        renderNewsItems(items, newsOffset > 0);
+        newsOffset += items.length;
+      }
+      if (more) { more.hidden = !data.hasMore; more.disabled = !data.hasMore; more.textContent = "기사 10개 더 보기 ↓"; }
+      $("newsProvider").textContent = data.provider || "Google News · RSS 검색";
+    } catch (error) {
+      if (requestId !== newsRequestId) return;
+      $("newsStatus").textContent = `검색 결과를 불러오지 못했습니다: ${error.message}`;
+      $("newsStatus").classList.add("error");
+      if (more) { more.hidden = false; more.disabled = false; more.textContent = "다시 불러오기 ↻"; }
+    } finally { if (requestId === newsRequestId) { newsBusy = false; if (more && more.textContent === "불러오는 중…") more.textContent = "기사 10개 더 보기 ↓"; } }
+  }
   function renderGoogleSearch(person) {
+    selectedNewsPerson = person;
     const urls = googleSearchUrls(person);
+    newsOffset = 0;
     $("newsPerson").textContent = person.name;
     $("newsQuery").textContent = `${personRole(person)} · ${person.institution}`;
-    $("newsStatus").textContent = "외부 검색 API나 RSS를 사용하지 않습니다. 아래 버튼을 누르면 Google에서 해당 인물의 실제 검색 결과를 최신순으로 확인할 수 있습니다.";
+    $("newsStatus").textContent = "Google News 최신순 검색 결과를 불러오는 중…";
     $("newsStatus").classList.remove("error");
-    $("newsList").innerHTML = `
-      <div class="google-search-panel">
-        <div class="google-search-label">GOOGLE SEARCH · SORT BY DATE</div>
-        <div class="google-search-query">${esc(urls.query)}</div>
-        <a class="google-result-button primary" href="${esc(urls.news)}" target="_blank" rel="noopener noreferrer">Google 뉴스 검색 결과 보기 <span>↗</span></a>
-        <a class="google-result-button secondary" href="${esc(urls.web)}" target="_blank" rel="noopener noreferrer">Google 전체 검색 결과 보기 <span>↗</span></a>
-        <p class="google-search-note">검색 결과와 게시 날짜는 Google이 실시간으로 제공합니다. Google 검색 페이지의 표시 순서와 결과 수는 Google 정책에 따라 달라질 수 있습니다.</p>
-      </div>`;
-    $("newsProvider").textContent = "Google Search · API/RSS 미사용";
+    $("newsList").innerHTML = "";
+    $("newsProvider").textContent = "Google News · 검색 결과 수집 중";
     $("googleSearch").href = urls.news;
-    $("googleSearch").textContent = "Google 뉴스에서 열기 ↗";
+    $("googleSearch").textContent = "Google 뉴스 전체 결과 ↗";
     $("googleSearch").hidden = false;
     $("searchAgain").disabled = false;
-    $("searchAgain").textContent = "Google에서 다시 검색 ↗";
-    $("searchAgain").onclick = () => window.open(urls.news, "_blank", "noopener");
+    $("searchAgain").textContent = "새로 검색 ↻";
+    $("searchAgain").onclick = () => loadPersonNews(person, true);
+    const more = $("loadMoreNews"); if (more) more.hidden = true;
+    loadPersonNews(person, true);
   }
   function selectPerson(person) {
     state.selected = person;
@@ -139,6 +185,7 @@
   document.querySelectorAll(".tab").forEach(button => button.addEventListener("click", () => switchTab(button.dataset.tab)));
   $("peopleSearch").addEventListener("input", renderPeople);
   $("refreshBtn").addEventListener("click", () => loadRoster(true));
+  $("loadMoreNews").addEventListener("click", () => { if (selectedNewsPerson) loadPersonNews(selectedNewsPerson, false); });
   $("themeBtn").addEventListener("click", () => {
     document.body.classList.toggle("dark");
     localStorage.setItem("fed_monitor_theme", document.body.classList.contains("dark") ? "dark" : "light");

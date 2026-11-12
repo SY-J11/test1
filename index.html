@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f3f5f9">
 <title>연준 인물 모니터 | FEDERAL RESERVE MONITOR</title>
-<link rel="stylesheet" href="fed.css?v=5">
+<link rel="stylesheet" href="fed.css?v=6">
 </head>
 <body>
 <div class="app">
@@ -16,7 +16,7 @@
 
   <main>
     <section class="hero">
-      <div><span class="eyebrow">US MONETARY POLICY · PEOPLE TRACKER</span><h1>연준을 움직이는<br><em>핵심 인물</em>을 추적합니다</h1><p>현직 연준 이사회와 FOMC 구성원을 공식 명단으로 자동 갱신하고, 인물별 Google 최신순 검색으로 연결합니다.</p></div>
+      <div><span class="eyebrow">US MONETARY POLICY · PEOPLE TRACKER</span><h1>연준을 움직이는<br><em>핵심 인물</em>을 추적합니다</h1><p>현직 연준 이사회와 FOMC 구성원을 공식 명단으로 자동 갱신하고, 인물별 최신 뉴스 검색 결과를 목록으로 제공합니다.</p></div>
       <div class="hero-date"><span>OFFICIAL ROSTER</span><b id="rosterYear">—</b><small>Federal Reserve</small></div>
     </section>
 
@@ -46,15 +46,15 @@
       <aside class="news-area card">
         <div class="news-head"><div><span class="eyebrow">LATEST COVERAGE</span><h2 id="newsPerson">인물을 선택하세요</h2><p id="newsQuery">선택한 인물의 Google 최신순 검색</p></div><button id="searchAgain" class="text-btn" type="button" disabled>다시 검색 ↻</button></div>
         <div id="newsStatus" class="news-status">왼쪽에서 인물을 선택한 뒤 Google 검색 결과 보기 링크를 누르세요.</div>
-        <div id="newsList" class="news-list"></div>
-        <div class="news-foot"><span id="newsProvider">Google Search · API/RSS 미사용</span><a id="googleSearch" href="#" target="_blank" rel="noopener" hidden>Google News에서 더 보기 ↗</a></div>
+        <div id="newsList" class="news-list"></div><button id="loadMoreNews" class="text-btn load-more-news" type="button" hidden>기사 10개 더 보기 ↓</button>
+        <div class="news-foot"><span id="newsProvider">Google News · RSS 기반 검색 결과</span><a id="googleSearch" href="#" target="_blank" rel="noopener" hidden>Google News에서 더 보기 ↗</a></div>
       </aside>
     </div>
 
-    <footer><span>자료 출처: Board of Governors · Federal Open Market Committee</span><span>명단 자동 확인 · 뉴스 검색은 Google에서 직접 확인</span></footer>
+    <footer><span>자료 출처: Board of Governors · Federal Open Market Committee</span><span>명단 자동 확인 · 뉴스 목록 및 원문 링크 제공</span></footer>
   </main>
 </div>
 <div id="toast" class="toast" role="status"></div>
-<script src="fed.js?v=5"></script>
+<script src="fed.js?v=6"></script>
 </body>
 </html>
