@@ -71,13 +71,21 @@
   function renderNews(person, payload) {
     $("newsPerson").textContent = person.name;
     $("newsQuery").textContent = `${personRole(person)} · ${person.institution}`;
-    $("newsStatus").textContent = payload.error ? `뉴스 검색에 실패했습니다: ${payload.error}` : payload.items.length ? `검색 결과 ${payload.total || payload.items.length}건` : "검색 결과가 없습니다.";
+    $("newsStatus").textContent = payload.error
+      ? `Google 검색 결과를 직접 불러오지 못했습니다: ${payload.error}`
+      : payload.items.length ? `검색 결과 ${payload.total || payload.items.length}건 · 최신순` : (payload.notice || "검색 결과가 없습니다.");
     $("newsStatus").classList.toggle("error", !!payload.error);
     $("newsList").innerHTML = (payload.items || []).map(item => `<article class="news-item"><a href="${esc(item.url)}" target="_blank" rel="noopener">${esc(item.title)}</a><div class="news-meta"><span>${esc(item.source || "News")}</span><span>${esc(dateText(item.publishedAt))}</span></div></article>`).join("");
     if (!payload.items?.length && !payload.error) $("newsList").innerHTML = '<div class="empty">표시할 뉴스가 없습니다. 다시 검색해 주세요.</div>';
     $("newsProvider").textContent = payload.provider || "Google News RSS";
     const googleQuery = `"${person.name}" Federal Reserve OR FOMC`;
-    $("googleSearch").href = `https://news.google.com/search?q=${encodeURIComponent(googleQuery)}&hl=en-US&gl=US&ceid=US:en`;
+    const googleUrl = new URL("https://www.google.com/search");
+    googleUrl.searchParams.set("q", googleQuery);
+    googleUrl.searchParams.set("tbm", "nws");
+    googleUrl.searchParams.set("tbs", "sbd:1");
+    googleUrl.searchParams.set("hl", "en");
+    googleUrl.searchParams.set("gl", "US");
+    $("googleSearch").href = payload.searchUrl || googleUrl.toString();
     $("googleSearch").hidden = false;
   }
   async function selectPerson(person, force = false) {
@@ -85,9 +93,9 @@
     renderPeople();
     $("newsPerson").textContent = person.name;
     $("newsQuery").textContent = `${personRole(person)} · ${person.institution}`;
-    $("newsStatus").textContent = "관련 뉴스 검색 중입니다.";
+    $("newsStatus").textContent = "Google 뉴스 검색 결과를 최신순으로 불러오고 있습니다.";
     $("newsStatus").classList.remove("error");
-    $("newsList").innerHTML = '<div class="loading">최신 뉴스를 수집하고 있습니다.</div>';
+    $("newsList").innerHTML = '<div class="loading">Google 검색 결과를 확인하고 있습니다.</div>';
     $("searchAgain").disabled = true;
     const requestId = ++state.requestId;
     const cacheKey = `${state.tab}|${person.name}`;
