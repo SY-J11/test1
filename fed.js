@@ -35,7 +35,7 @@
     return role || person.institution || "FOMC Member";
   }
   function googleSearchUrls(person) {
-    const query = `"${person.name}" Federal Reserve OR FOMC`;
+    const query = person.name.trim();
     const news = new URL("https://www.google.com/search");
     news.searchParams.set("q", query);
     news.searchParams.set("tbm", "nws");
@@ -107,16 +107,23 @@
     newsBusy = true;
     const more = $("loadMoreNews");
     if (more) { more.disabled = true; more.textContent = "불러오는 중…"; }
-    if (!newsOffset) $("newsStatus").textContent = "Google News·Bing·GDELT 등에서 최신 기사를 수집하고 있습니다…";
+    if (!newsOffset) $("newsStatus").textContent = "Google News·Bing·GDELT에서 “이름만” 검색하고 있습니다…";
     try {
-      const query = `"${person.name}" Federal Reserve OR FOMC`;
+      const query = person.name.trim();
       const params = new URLSearchParams({ q: query, limit: "10", offset: String(newsOffset) });
       const data = await getJSON(`${API_BASE}/api/person-news?${params}`);
       if (requestId !== newsRequestId) return;
       const items = Array.isArray(data.items) ? data.items : [];
       if (!items.length && !newsOffset) {
-        $("newsStatus").textContent = data.error || "표시할 검색 결과가 없습니다.";
+        const diagnostics = Array.isArray(data.diagnostics) ? data.diagnostics.slice(0, 3).join(" · ") : "";
+        $("newsStatus").textContent = `${data.error || "RSS 검색 결과가 없습니다."}${diagnostics ? ` (${diagnostics})` : ""} 아래 Google 검색 링크에서 실시간 결과를 확인할 수 있습니다.`;
         $("newsStatus").classList.add("error");
+        const fallback = document.createElement("article");
+        fallback.className = "news-item news-fallback";
+        const a = document.createElement("a"); a.href = googleSearchUrls(person).news; a.target = "_blank"; a.rel = "noopener noreferrer";
+        a.textContent = `Google 뉴스에서 ${person.name} 검색 결과 보기 ↗`;
+        const meta = document.createElement("div"); meta.className = "news-meta"; meta.textContent = `검색어: ${person.name}`;
+        fallback.append(a, meta); $("newsList").appendChild(fallback);
       } else {
         $("newsStatus").classList.remove("error");
         $("newsStatus").textContent = `${data.total || items.length}개 검색 결과 · ${data.provider || "Google News"} · 최신순`;
