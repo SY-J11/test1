@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -32,7 +32,7 @@ async function getJson(url){
  const task=(async()=>{
   const proxy=`${PROXY_BASE}?url=${encodeURIComponent(url)}`;
   const candidates=[proxy,`https://corsproxy.io/?url=${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,url];
-  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'application/json'}},3000);if(!r.ok)throw Error(`HTTP ${r.status}`);const d=JSON.parse(await r.text());if(d?.error)throw Error(d.error);return d};
+  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'application/json'}},8500);if(!r.ok)throw Error(`HTTP ${r.status}`);const d=JSON.parse(await r.text());if(d?.error)throw Error(d.error);return d};
   let data,lastError;
   for(const candidate of candidates){try{data=await read(candidate);break}catch(e){lastError=e}}
   if(data===undefined)throw lastError||Error('API 요청 실패');
@@ -78,7 +78,7 @@ async function getText(url){
  const task=(async()=>{
   const proxy=`${PROXY_BASE}?url=${encodeURIComponent(url)}`;
   const candidates=[proxy,`https://corsproxy.io/?url=${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,url];
-  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'text/html,application/json,*/*'}},3000);if(!r.ok)throw Error(`HTTP ${r.status}`);let t=await r.text();if(!t||t.length<30)throw Error('빈 응답');let parsed=null;try{parsed=JSON.parse(t)}catch{}if(parsed&&typeof parsed==='object'){if(parsed.error)throw Error(String(parsed.error));const embedded=parsed.contents??parsed.content??parsed.body??parsed.data;if(typeof embedded==='string'&&embedded.length>20)t=embedded;else if(!Array.isArray(parsed))throw Error('HTML 대신 JSON 응답을 받았습니다.')}if(!t||t.length<30)throw Error('빈 응답');return t};
+  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'text/html,application/json,*/*'}},8500);if(!r.ok)throw Error(`HTTP ${r.status}`);let t=await r.text();if(!t||t.length<30)throw Error('빈 응답');let parsed=null;try{parsed=JSON.parse(t)}catch{}if(parsed&&typeof parsed==='object'){if(parsed.error)throw Error(String(parsed.error));const embedded=parsed.contents??parsed.content??parsed.body??parsed.data;if(typeof embedded==='string'&&embedded.length>20)t=embedded;else if(!Array.isArray(parsed))throw Error('HTML 대신 JSON 응답을 받았습니다.')}if(!t||t.length<30)throw Error('빈 응답');return t};
   let data,lastError;for(const candidate of candidates){try{data=await read(candidate);break}catch(e){lastError=e}}
   if(data===undefined)throw lastError||Error('텍스트 조회 실패');
   textMemoryCache.set(url,{value:data,expires:Date.now()+120000});
@@ -959,50 +959,59 @@ function parseNaverEarningsSurprise(html){
   const doc=new DOMParser().parseFromString(String(html||''),'text/html');
   const dateRe=/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/;
   const cleanCell=cell=>(cell?.innerText||cell?.textContent||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-  for(const table of doc.querySelectorAll('table')){
-   const trs=[...table.querySelectorAll('tr')];
-   if(!trs.length)continue;
-   const cellRows=trs.map(tr=>[...tr.cells].map(cleanCell));
-   // Find the exact period header row (재무연월 / 2026/06 / 2026/09).
-   let headerIndex=-1,periods=[];
-   for(let ri=0;ri<cellRows.length;ri++){
-    const row=cellRows[ri]||[];
-    if(!row.some(x=>/재무연월/.test(x)))continue;
-    const found=[];
-    for(let rj=ri;rj<=Math.min(ri+2,cellRows.length-1);rj++){
-     for(const value of cellRows[rj]||[]){
-      const m=String(value||'').match(dateRe);
-      if(m){const month=Number(m[2]);if(month>=1&&month<=12)found.push({year:Number(m[1]),quarter:Math.ceil(month/3)});}
-     }
-     if(found.length)break;
+  const expandTable=table=>{
+   const rows=[...table.rows],grid=[],active=new Map();
+   rows.forEach((tr,ri)=>{
+    const row=[];
+    // Carry cells whose rowspan continues into this row.
+    for(const [col,item] of [...active.entries()]){
+     row[col]=item.value;
+     item.left--;
+     if(item.left<=0)active.delete(col);
     }
-    if(found.length){headerIndex=ri;periods=found;break;}
+    let col=0;
+    for(const cell of [...tr.cells]){
+     while(row[col]!==undefined)col++;
+     const value=cleanCell(cell),cs=Math.max(1,Number(cell.colSpan)||1),rs=Math.max(1,Number(cell.rowSpan)||1);
+     for(let k=0;k<cs;k++){
+      while(row[col+k]!==undefined)col++;
+      const target=col+k;row[target]=value;
+      if(rs>1)active.set(target,{value,left:rs-1});
+     }
+     col+=cs;
+    }
+    grid.push(row);
+   });
+   return grid;
+  };
+  for(const table of doc.querySelectorAll('table')){
+   const grid=expandTable(table);if(!grid.length)continue;
+   let headerIndex=-1,dateCols=[];
+   for(let ri=0;ri<grid.length;ri++){
+    if(!(grid[ri]||[]).some(x=>/재무연월/.test(String(x||''))))continue;
+    for(let rj=ri;rj<=Math.min(ri+2,grid.length-1);rj++){
+     const found=[];
+     (grid[rj]||[]).forEach((value,ci)=>{const m=String(value||'').match(dateRe);if(m){const month=Number(m[2]);if(month>=1&&month<=12)found.push({col:ci,year:Number(m[1]),quarter:Math.ceil(month/3)});}});
+     if(found.length){headerIndex=ri;dateCols=found;break;}
+    }
+    if(dateCols.length)break;
    }
-   if(headerIndex<0||!periods.length)continue;
-
-   const result=new Map();
-   let inOperatingProfit=false;
-   for(let ri=headerIndex+1;ri<cellRows.length;ri++){
-    const cells=cellRows[ri]||[];
-    const rowText=cells.join(' ').replace(/\s+/g,' ').trim();
-    if(/당기순이익/.test(rowText))break;
-    if(/영업이익/.test(rowText))inOperatingProfit=true;
+   if(headerIndex<0||!dateCols.length)continue;
+   const result=new Map();let inOperatingProfit=false;
+   for(let ri=headerIndex+1;ri<grid.length;ri++){
+    const cells=grid[ri]||[];const rowText=cells.join(' ').replace(/\s+/g,' ').trim();
+    if(/당기순이익/.test(rowText)){if(inOperatingProfit)break;continue;}
+    if(cells.some(x=>/^영업이익$/.test(String(x||'').trim())))inOperatingProfit=true;
     if(!inOperatingProfit)continue;
-
-    // HTML rowSpan means the 영업이익 cell exists only on the first row.
-    // Therefore keep the metric active until the next metric begins, and
-    // read each detail row's values immediately after its own label cell.
     const fieldIndex=cells.findIndex(x=>/^(?:컨센서스|잠정치|surprise)$/i.test(String(x||'').trim()));
     if(fieldIndex<0)continue;
     const label=String(cells[fieldIndex]||'').trim();
     const field=/컨센서스/i.test(label)?'consensus':/잠정치/.test(label)?'preliminary':/surprise/i.test(label)?'surprise':null;
     if(!field)continue;
-    const valueCells=cells.slice(fieldIndex+1);
-    for(let pi=0;pi<periods.length;pi++){
-     const period=periods[pi],key=`${period.year}-${period.quarter}`;
-     const item=result.get(key)||{year:period.year,quarter:period.quarter,consensus:null,preliminary:null,surprise:null};
-     item[field]=naverSurpriseNumber(valueCells[pi]??'');
-     result.set(key,item);
+    for(const p of dateCols){
+     const key=`${p.year}-${p.quarter}`;
+     const item=result.get(key)||{year:p.year,quarter:p.quarter,consensus:null,preliminary:null,surprise:null};
+     item[field]=naverSurpriseNumber(cells[p.col]??'');result.set(key,item);
     }
    }
    const rows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
@@ -1035,10 +1044,14 @@ function renderDartSurpriseAnalysis(){
   .map(r=>({year:Number(r.year),quarter:Number(r.quarter),dartActual:dartCompareEok(r.operatingProfit)}))
   .filter(r=>Number.isFinite(r.year)&&r.quarter>=1&&r.quarter<=4&&r.dartActual!==null);
  const naverRows=Array.isArray(dartNaverEarningsData)?dartNaverEarningsData:[];
+ const estimates=dartConsensusQuarters.filter(q=>q?.est&&q.profit!==null)
+  .map(q=>({...parseDartComparePeriod(q),consensus:Number(q.profit)}))
+  .filter(q=>Number.isFinite(q.year)&&q.quarter>=1&&q.quarter<=4&&Number.isFinite(q.consensus));
  const periods=new Map();
  const keyOf=p=>`${p.year}-${p.quarter}`;
  for(const r of naverRows){const k=keyOf(r);periods.set(k,{year:r.year,quarter:r.quarter,consensus:r.consensus??null,preliminary:r.preliminary??null,naverSurprise:r.surprise??null})}
  for(const r of dartRows){const k=keyOf(r),p=periods.get(k)||{year:r.year,quarter:r.quarter};p.dartActual=r.dartActual;periods.set(k,p)}
+ for(const e of estimates){const k=keyOf(e),p=periods.get(k)||{year:e.year,quarter:e.quarter};if(p.consensus===null||p.consensus===undefined)p.consensus=e.consensus;periods.set(k,p)}
  const rows=[...periods.values()]
   .filter(p=>p.consensus!==null&&p.consensus!==undefined||p.preliminary!==null&&p.preliminary!==undefined||p.dartActual!==null&&p.dartActual!==undefined||p.naverSurprise!==null&&p.naverSurprise!==undefined)
   .sort((a,b)=>b.year-a.year||b.quarter-a.quarter).slice(0,2);
