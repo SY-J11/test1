@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -934,8 +934,9 @@ const DART_PROXY=PROXY_BASE;
 const dartFmt=v=>{if(v===null||v===undefined||!Number.isFinite(Number(v)))return '—';return (Number(v)/1e8).toLocaleString('ko-KR',{maximumFractionDigits:1})};
 const dartNum=v=>{if(v===null||v===undefined||v===''||v==='-')return null;const n=Number(String(v).replace(/,/g,''));return Number.isFinite(n)?n:null};
 function dartQuarterLabel(y,q){return `${y}년 ${q}Q`}
-// DART 정기 실적을 우선 사용하고, 해당 분기 정기 실적이 없으면
-// 네이버 기업현황(펀더멘털 > 어닝서프라이즈)의 컨센서스/잠정치를 보조 자료로 사용한다.
+// DART 확정 실적과 WiseReport 원본 어닝서프라이즈 자료를 별도로 표시한다.
+// 컨센서스는 반드시 WiseReport 어닝서프라이즈 원본 표에서만 가져오며,
+// 일반 분기재무 API의 예상 영업이익으로 대체하거나 덮어쓰지 않는다.
 let dartConsensusQuarters=[],dartFinancialDataCache=null,dartNaverEarningsData=null,dartNaverEarningsError='';
 function parseDartComparePeriod(item){
  const label=String(item?.label??'')+' '+String(item?.key??'');
@@ -1044,14 +1045,10 @@ function renderDartSurpriseAnalysis(){
   .map(r=>({year:Number(r.year),quarter:Number(r.quarter),dartActual:dartCompareEok(r.operatingProfit)}))
   .filter(r=>Number.isFinite(r.year)&&r.quarter>=1&&r.quarter<=4&&r.dartActual!==null);
  const naverRows=Array.isArray(dartNaverEarningsData)?dartNaverEarningsData:[];
- const estimates=dartConsensusQuarters.filter(q=>q?.est&&q.profit!==null)
-  .map(q=>({...parseDartComparePeriod(q),consensus:Number(q.profit)}))
-  .filter(q=>Number.isFinite(q.year)&&q.quarter>=1&&q.quarter<=4&&Number.isFinite(q.consensus));
  const periods=new Map();
  const keyOf=p=>`${p.year}-${p.quarter}`;
  for(const r of naverRows){const k=keyOf(r);periods.set(k,{year:r.year,quarter:r.quarter,consensus:r.consensus??null,preliminary:r.preliminary??null,naverSurprise:r.surprise??null})}
  for(const r of dartRows){const k=keyOf(r),p=periods.get(k)||{year:r.year,quarter:r.quarter};p.dartActual=r.dartActual;periods.set(k,p)}
- for(const e of estimates){const k=keyOf(e),p=periods.get(k)||{year:e.year,quarter:e.quarter};if(p.consensus===null||p.consensus===undefined)p.consensus=e.consensus;periods.set(k,p)}
  const rows=[...periods.values()]
   .filter(p=>p.consensus!==null&&p.consensus!==undefined||p.preliminary!==null&&p.preliminary!==undefined||p.dartActual!==null&&p.dartActual!==undefined||p.naverSurprise!==null&&p.naverSurprise!==undefined)
   .sort((a,b)=>b.year-a.year||b.quarter-a.quarter).slice(0,2);
