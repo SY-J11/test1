@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -78,7 +78,7 @@ async function getText(url){
  const task=(async()=>{
   const proxy=`${PROXY_BASE}?url=${encodeURIComponent(url)}`;
   const candidates=[proxy,`https://corsproxy.io/?url=${encodeURIComponent(url)}`,`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,url];
-  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'text/html,application/json,*/*'}},3000);if(!r.ok)throw Error(`HTTP ${r.status}`);let t=await r.text();if(!t||t.length<30)throw Error('빈 응답');try{const j=JSON.parse(t);if(typeof j.contents==='string'&&j.contents.length>20)t=j.contents;else if(typeof j.content==='string'&&j.content.length>20)t=j.content;else if(typeof j.body==='string'&&j.body.length>20)t=j.body;else if(typeof j.data==='string'&&j.data.length>20)t=j.data}catch{}if(!t||t.length<30)throw Error('빈 응답');return t};
+  const read=async u=>{const r=await fetchTimed(u,{cache:'no-store',headers:{Accept:'text/html,application/json,*/*'}},3000);if(!r.ok)throw Error(`HTTP ${r.status}`);let t=await r.text();if(!t||t.length<30)throw Error('빈 응답');let parsed=null;try{parsed=JSON.parse(t)}catch{}if(parsed&&typeof parsed==='object'){if(parsed.error)throw Error(String(parsed.error));const embedded=parsed.contents??parsed.content??parsed.body??parsed.data;if(typeof embedded==='string'&&embedded.length>20)t=embedded;else if(!Array.isArray(parsed))throw Error('HTML 대신 JSON 응답을 받았습니다.')}if(!t||t.length<30)throw Error('빈 응답');return t};
   let data,lastError;for(const candidate of candidates){try{data=await read(candidate);break}catch(e){lastError=e}}
   if(data===undefined)throw lastError||Error('텍스트 조회 실패');
   textMemoryCache.set(url,{value:data,expires:Date.now()+120000});
@@ -960,6 +960,7 @@ function parseNaverEarningsSurprise(html){
   const tables=[...doc.querySelectorAll('table')];
   for(const table of tables){
    const trs=[...table.querySelectorAll('tr')];if(!trs.length)continue;
+   // rowspan/colspan을 반영해 실제 화면의 열 위치를 복원한다.
    const grid=[];
    trs.forEach((tr,ri)=>{
     grid[ri]=grid[ri]||[];let ci=0;
@@ -967,28 +968,47 @@ function parseNaverEarningsSurprise(html){
      while(grid[ri][ci]!==undefined)ci++;
      const txt=(cell.innerText||cell.textContent||'').replace(/\s+/g,' ').trim();
      const rs=Math.max(1,Number(cell.rowSpan)||1),cs=Math.max(1,Number(cell.colSpan)||1);
-     for(let rr=0;rr<rs;rr++){grid[ri+rr]=grid[ri+rr]||[];for(let cc=0;cc<cs;cc++)grid[ri+rr][ci+cc]=txt}
+     for(let rr=0;rr<rs;rr++){
+      grid[ri+rr]=grid[ri+rr]||[];
+      for(let cc=0;cc<cs;cc++)if(grid[ri+rr][ci+cc]===undefined)grid[ri+rr][ci+cc]=txt;
+     }
      ci+=cs;
     });
    });
    const headerIndex=grid.findIndex(row=>row?.some(x=>/재무연월/.test(x||''))&&row.some(x=>/^(?:19|20)\d{2}\s*[./-]\s*\d{1,2}(?:\s*\([AE]\))?$/i.test(String(x||'').trim())));
    if(headerIndex<0)continue;
    const header=grid[headerIndex],periodCols=[];
-   header.forEach((v,i)=>{const m=String(v||'').match(/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/);if(m){const month=Number(m[2]);if(month>=1&&month<=12)periodCols.push({index:i,year:Number(m[1]),quarter:Math.ceil(month/3)})}});
+   header.forEach((v,i)=>{
+    const m=String(v||'').match(/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/);
+    if(m){const month=Number(m[2]);if(month>=1&&month<=12)periodCols.push({index:i,year:Number(m[1]),quarter:Math.ceil(month/3)})}
+   });
    if(!periodCols.length)continue;
    const result=new Map();
+   let activeMetric='';
    for(let ri=headerIndex+1;ri<grid.length;ri++){
-    const row=grid[ri]||[];const before=row.slice(0,Math.min(...periodCols.map(x=>x.index))).join(' ').replace(/\s+/g,' ');
-    if(!/영업이익/.test(before))continue;
+    const row=grid[ri]||[];
+    const label=row.slice(0,Math.min(...periodCols.map(x=>x.index))).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+    // 어닝서프라이즈 표는 '영업이익'이 첫 행에만 있고,
+    // 컨센서스/잠정치/Surprise는 그 아래 별도 행으로 배치된다.
+    // 영업이익 구간을 기억해 하위 행을 같은 항목으로 연결한다.
+    if(/당기순이익/.test(label)){activeMetric='';continue;}
+    if(/영업이익/.test(label))activeMetric='operatingProfit';
+    if(activeMetric!=='operatingProfit')continue;
     let field=null;
-    if(/컨센서스/.test(before))field='consensus';
-    else if(/잠정치/.test(before))field='preliminary';
-    else if(/Surprise/i.test(before))field='surprise';
+    if(/컨센서스/i.test(label))field='consensus';
+    else if(/잠정치/.test(label))field='preliminary';
+    else if(/surprise/i.test(label))field='surprise';
     if(!field)continue;
-    for(const period of periodCols){const key=`${period.year}-${period.quarter}`;const item=result.get(key)||{year:period.year,quarter:period.quarter,consensus:null,preliminary:null,surprise:null};item[field]=naverSurpriseNumber(row[period.index]);result.set(key,item)}
+    for(const period of periodCols){
+     const key=`${period.year}-${period.quarter}`;
+     const item=result.get(key)||{year:period.year,quarter:period.quarter,consensus:null,preliminary:null,surprise:null};
+     item[field]=naverSurpriseNumber(row[period.index]);
+     result.set(key,item);
+    }
    }
    const rows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
-   if(rows.length)return rows;
+   // 유효한 값이 한 개라도 있는 기간만 반환한다. 0도 정상 실적값이다.
+   if(rows.some(r=>r.consensus!==null||r.preliminary!==null||r.surprise!==null))return rows;
   }
  }catch(e){console.warn('네이버 어닝서프라이즈 표 분석 실패',e)}
  return [];
