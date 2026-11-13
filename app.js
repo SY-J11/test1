@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -952,7 +952,7 @@ function naverSurpriseNumber(value){
  if(!s||/^(?:-|—|–|N\/A|자료없음)$/i.test(s))return null;
  const cleaned=s.replace(/,/g,'').replace(/[^0-9.+\-]/g,'');
  if(!cleaned||!/[0-9]/.test(cleaned))return null;
- const n=Number(cleaned);return Number.isFinite(n)?n:null;
+ const negative=/^\s*\(.*\)\s*$/.test(s)||/^\s*[-−]/.test(s);const n=Number(cleaned);return Number.isFinite(n)?(negative?-Math.abs(n):n):null;
 }
 function parseNaverEarningsSurprise(html){
  try{
@@ -971,7 +971,7 @@ function parseNaverEarningsSurprise(html){
      ci+=cs;
     });
    });
-   const headerIndex=grid.findIndex(row=>row?.some(x=>/재무연월/.test(x||''))&&row.some(x=>/^(?:19|20)\d{2}\s*[./-]\s*\d{1,2}$/.test(String(x||'').trim())));
+   const headerIndex=grid.findIndex(row=>row?.some(x=>/재무연월/.test(x||''))&&row.some(x=>/^(?:19|20)\d{2}\s*[./-]\s*\d{1,2}(?:\s*\([AE]\))?$/i.test(String(x||'').trim())));
    if(headerIndex<0)continue;
    const header=grid[headerIndex],periodCols=[];
    header.forEach((v,i)=>{const m=String(v||'').match(/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/);if(m){const month=Number(m[2]);if(month>=1&&month<=12)periodCols.push({index:i,year:Number(m[1]),quarter:Math.ceil(month/3)})}});
@@ -1007,44 +1007,43 @@ async function loadNaverEarningsSurprise(code){
 function renderDartSurpriseAnalysis(){
  const host=$('dartSurpriseResult');if(!host)return;
  const dartRows=(Array.isArray(dartFinancialDataCache?.quarters)?dartFinancialDataCache.quarters:[])
-  .map(r=>({year:Number(r.year),quarter:Number(r.quarter),profit:dartCompareEok(r.operatingProfit),source:'DART'}))
-  .filter(r=>Number.isFinite(r.year)&&r.quarter>=1&&r.quarter<=4&&r.profit!==null)
-  .sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
+  .map(r=>({year:Number(r.year),quarter:Number(r.quarter),dartActual:dartCompareEok(r.operatingProfit)}))
+  .filter(r=>Number.isFinite(r.year)&&r.quarter>=1&&r.quarter<=4&&r.dartActual!==null);
  const naverRows=Array.isArray(dartNaverEarningsData)?dartNaverEarningsData:[];
  const estimates=dartConsensusQuarters.filter(q=>q?.est&&q.profit!==null)
-  .map(q=>({...parseDartComparePeriod(q),estimate:Number(q.profit)}))
-  .filter(q=>Number.isFinite(q.year)&&q.quarter>=1&&q.quarter<=4&&Number.isFinite(q.estimate));
+  .map(q=>({...parseDartComparePeriod(q),consensus:Number(q.profit)}))
+  .filter(q=>Number.isFinite(q.year)&&q.quarter>=1&&q.quarter<=4&&Number.isFinite(q.consensus));
  const periods=new Map();
- for(const r of naverRows){const k=`${r.year}-${r.quarter}`;periods.set(k,{...r})}
- for(const r of dartRows){const k=`${r.year}-${r.quarter}`;const p=periods.get(k)||{year:r.year,quarter:r.quarter};p.dartActual=r.profit;periods.set(k,p)}
- for(const e of estimates){const k=`${e.year}-${e.quarter}`;const p=periods.get(k)||{year:e.year,quarter:e.quarter};if(p.consensus===undefined||p.consensus===null)p.consensus=e.estimate;periods.set(k,p)}
- const sorted=[...periods.values()].sort((a,b)=>b.year-a.year||b.quarter-a.quarter);
- // 최신 분기부터 실제값(DART 우선, 네이버 잠정치 차선)을 찾는다.
- let selected=null;
- for(const p of sorted){const actual=p.dartActual??p.preliminary??null;if(actual!==null&&Number.isFinite(Number(actual))){selected={...p,actual:Number(actual),actualSource:p.dartActual!==undefined?'DART':'네이버 잠정치'};break}}
- if(selected){
-  const estimate=selected.consensus??null;
-  if(estimate!==null&&Number.isFinite(Number(estimate))){
-   const diff=selected.actual-Number(estimate),cls=Math.abs(diff)<0.05?'hit':diff>0?'surprise':'shock';
-   const verdict=cls==='surprise'?'어닝 서프라이즈':cls==='shock'?'어닝 쇼크':'예상치 적중';
-   host.className=`dart-surprise-result ${cls}`;
-   host.innerHTML=`<strong>${selected.year}년 ${selected.quarter}분기 ${verdict}</strong><small>${selected.actualSource} ${dartCompareFmt(selected.actual)}억 · 네이버 컨센서스 ${dartCompareFmt(Number(estimate))}억</small>`;
-   return;
-  }
-  host.className='dart-surprise-result actual-only';
-  host.innerHTML=`<strong>${selected.year}년 ${selected.quarter}분기 실적 ${dartCompareFmt(selected.actual)}억</strong><small>${selected.actualSource} 기준 · 해당 분기 컨센서스 자료가 없어 실적만 표시합니다.</small>`;
+ const keyOf=p=>`${p.year}-${p.quarter}`;
+ for(const r of naverRows){const k=keyOf(r);periods.set(k,{year:r.year,quarter:r.quarter,consensus:r.consensus??null,preliminary:r.preliminary??null,naverSurprise:r.surprise??null})}
+ for(const r of dartRows){const k=keyOf(r),p=periods.get(k)||{year:r.year,quarter:r.quarter};p.dartActual=r.dartActual;periods.set(k,p)}
+ for(const e of estimates){const k=keyOf(e),p=periods.get(k)||{year:e.year,quarter:e.quarter};if(p.consensus===null||p.consensus===undefined)p.consensus=e.consensus;periods.set(k,p)}
+ const rows=[...periods.values()]
+  .filter(p=>p.consensus!==null&&p.consensus!==undefined||p.preliminary!==null&&p.preliminary!==undefined||p.dartActual!==null&&p.dartActual!==undefined||p.naverSurprise!==null&&p.naverSurprise!==undefined)
+  .sort((a,b)=>b.year-a.year||b.quarter-a.quarter).slice(0,2);
+ const fmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'-':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1});
+ const signClass=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'':Number(v)>0?'positive':Number(v)<0?'negative':'neutral';
+ if(!rows.length){
+  host.className='dart-surprise-table-state';
+  host.innerHTML='<div class="dart-surprise-empty">네이버 어닝서프라이즈 또는 DART 분기 실적 자료를 확인하는 중입니다.</div>';
   return;
  }
- // 해당 분기 실적이 DART와 네이버 양쪽 모두 없으면 직전 분기의 실적을 표시한다.
- const latestDart=dartRows[dartRows.length-1],latestNaver=naverRows.filter(x=>x.preliminary!==null).sort((a,b)=>a.year-b.year||a.quarter-b.quarter).at(-1);
- const fallback=latestDart&&latestNaver?(latestDart.year>latestNaver.year||(latestDart.year===latestNaver.year&&latestDart.quarter>=latestNaver.quarter)?{...latestDart,actual:latestDart.profit,actualSource:'DART'}:{...latestNaver,actual:latestNaver.preliminary,actualSource:'네이버 잠정치'}):latestDart?{...latestDart,actual:latestDart.profit,actualSource:'DART'}:latestNaver?{...latestNaver,actual:latestNaver.preliminary,actualSource:'네이버 잠정치'}:null;
- if(fallback){
-  const estimate=fallback.consensus??null;
-  if(estimate!==null&&Number.isFinite(Number(estimate))){const diff=fallback.actual-Number(estimate),cls=Math.abs(diff)<0.05?'hit':diff>0?'surprise':'shock',verdict=cls==='surprise'?'어닝 서프라이즈':cls==='shock'?'어닝 쇼크':'예상치 적중';host.className=`dart-surprise-result ${cls}`;host.innerHTML=`<strong>${fallback.year}년 ${fallback.quarter}분기 ${verdict}</strong><small>${fallback.actualSource} ${dartCompareFmt(fallback.actual)}억 · 컨센서스 ${dartCompareFmt(Number(estimate))}억 · 최근 확인 가능한 분기 자료</small>`;return}
-  host.className='dart-surprise-result actual-only';host.innerHTML=`<strong>${fallback.year}년 ${fallback.quarter}분기 실적 ${dartCompareFmt(fallback.actual)}억</strong><small>해당 분기 자료가 없어 직전 확인 가능한 ${fallback.actualSource} 실적을 표시합니다.</small>`;return;
- }
- host.className='dart-surprise-result actual-only';
- host.innerHTML='<strong>분기 실적 자료 확인 중</strong><small>DART 또는 네이버 증권의 실적 자료가 확인되면 자동으로 비교합니다.</small>';
+ const tableRows=rows.map(p=>{
+  const consensus=p.consensus??null,preliminary=p.preliminary??null,dart=p.dartActual??null;
+  const diff=dart!==null&&consensus!==null?dart-consensus:null;
+  const naverSurprise=p.naverSurprise??null;
+  const verdictValue=diff!==null?diff:naverSurprise;
+  let verdict='-',verdictClass='neutral';
+  if(verdictValue!==null&&verdictValue!==undefined&&Number.isFinite(Number(verdictValue))){
+   if(Number(verdictValue)>0){verdict='Earning Surprise';verdictClass='positive'}
+   else if(Number(verdictValue)<0){verdict='Earning Shock';verdictClass='negative'}
+   else{verdict='Earning In Line';verdictClass='neutral'}
+  }
+  const compare=`<span class="dart-compare-number ${signClass(diff)}">${fmt(diff)}</span><span class="dart-compare-bracket">[</span><span class="dart-compare-number ${signClass(naverSurprise)}">${fmt(naverSurprise)}</span><span class="dart-compare-bracket">]</span>`;
+  return `<tr><td class="period">${p.year}.${String(p.quarter*3).padStart(2,'0')}</td><td>${fmt(consensus)}</td><td>${fmt(preliminary)}</td><td>${fmt(dart)}</td><td class="compare">${compare}</td><td><span class="dart-earnings-verdict ${verdictClass}">${verdict}</span></td></tr>`;
+ }).join('');
+ host.className='dart-surprise-table-state';
+ host.innerHTML=`<div class="dart-surprise-table-scroll"><table class="dart-surprise-table"><thead><tr><th>재무연월</th><th>컨센서스</th><th>잠정치</th><th>DART</th><th>비교치</th><th>Surprise</th></tr></thead><tbody>${tableRows}</tbody></table></div><div class="dart-surprise-table-note">단위: 억원 · 비교치 [ ] 안은 네이버 Surprise(%) · 최근 2개 분기</div>`;
 }
 
 function renderDartFinancials(data){

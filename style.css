@@ -96,16 +96,26 @@
 @media(max-width:520px){.dart-financial-card{padding:13px}.dart-financial-summary{gap:5px}.dart-financial-summary>div{padding:9px 7px}.dart-financial-summary b{font-size:13px}.dart-financial-head h3{font-size:15px}}
 
 
-/* DART quarterly earnings surprise comparison - independent panel */
+/* DART quarterly earnings surprise comparison table */
 .dart-surprise-card{margin-top:10px;padding:14px 16px;overflow:hidden}
 .dart-surprise-heading{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
 .dart-surprise-heading .eyebrow{font-size:9px;letter-spacing:.08em;color:var(--muted,#8490a3)}
 .dart-surprise-heading>b{font-size:13px;color:var(--text)}
-.dart-surprise-result{display:flex;flex-direction:column;gap:5px;border-radius:10px;padding:13px 12px;background:var(--soft,#f5f7fa);font-variant-numeric:tabular-nums}
-.dart-surprise-result strong{font-size:16px;line-height:1.4;font-weight:800}
-.dart-surprise-result small{font-size:10px;line-height:1.5;color:var(--muted,#8490a3)}
-.dart-surprise-result.surprise strong{color:#df5967}
-.dart-surprise-result.hit strong{color:#858b95}
-.dart-surprise-result.shock strong{color:#3979d8}
-.dart-surprise-result.actual-only strong{color:var(--text)}
-@media(max-width:520px){.dart-surprise-card{padding:12px}.dart-surprise-result{padding:11px}.dart-surprise-result strong{font-size:14px}}
+.dart-surprise-table-state{min-width:0}
+.dart-surprise-table-scroll{width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:9px}
+.dart-surprise-table{border-collapse:collapse;width:100%;min-width:620px;font-size:10px;font-variant-numeric:tabular-nums;background:var(--card)}
+.dart-surprise-table th,.dart-surprise-table td{padding:10px 7px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.dart-surprise-table th{background:var(--soft,#f5f7fa);color:var(--muted);font-size:10px;font-weight:700}
+.dart-surprise-table td{color:var(--text);font-weight:600}
+.dart-surprise-table tbody tr:last-child td{border-bottom:0}
+.dart-surprise-table td.period{text-align:left;font-weight:800}
+.dart-surprise-table td.compare{font-weight:800}
+.dart-compare-number.positive,.dart-earnings-verdict.positive{color:#df5967}
+.dart-compare-number.negative,.dart-earnings-verdict.negative{color:#3979d8}
+.dart-compare-number.neutral,.dart-earnings-verdict.neutral{color:#858b95}
+.dart-compare-bracket{color:#111;font-weight:600}
+.dart-earnings-verdict{font-size:9px;font-weight:800;letter-spacing:-.2px}
+.dart-surprise-table-note{margin-top:7px;color:var(--muted);font-size:9px;line-height:1.5}
+.dart-surprise-empty{padding:14px 10px;text-align:center;border-radius:9px;background:var(--soft,#f5f7fa);font-size:10px;color:var(--muted)}
+body.dark .dart-compare-bracket{color:#111}
+@media(max-width:520px){.dart-surprise-card{padding:12px}.dart-surprise-table{min-width:610px}.dart-surprise-table th,.dart-surprise-table td{padding:9px 6px}.dart-earnings-verdict{font-size:8.5px}}
