@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -959,50 +959,54 @@ function parseNaverEarningsSurprise(html){
   const doc=new DOMParser().parseFromString(String(html||''),'text/html');
   const dateRe=/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/;
   const cleanCell=cell=>(cell?.innerText||cell?.textContent||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-  for(const table of doc.querySelectorAll('table')){
-   const trs=[...table.querySelectorAll('tr')];
-   if(!trs.length)continue;
-   const cellRows=trs.map(tr=>[...tr.cells].map(cleanCell));
-   // Find the exact period header row (재무연월 / 2026/06 / 2026/09).
-   let headerIndex=-1,periods=[];
-   for(let ri=0;ri<cellRows.length;ri++){
-    const row=cellRows[ri]||[];
-    if(!row.some(x=>/재무연월/.test(x)))continue;
-    const found=[];
-    for(let rj=ri;rj<=Math.min(ri+2,cellRows.length-1);rj++){
-     for(const value of cellRows[rj]||[]){
-      const m=String(value||'').match(dateRe);
-      if(m){const month=Number(m[2]);if(month>=1&&month<=12)found.push({year:Number(m[1]),quarter:Math.ceil(month/3)});}
+  // WiseReport 표는 영업이익/당기순이익과 세부 항목에 rowspan·colspan을 사용한다.
+  // 각 테이블의 실제 셀 좌표를 먼저 복원한 뒤 재무연월 열과 영업이익 행을 연결한다.
+  const expandTable=table=>{
+   const rows=[...table.rows].filter(tr=>tr.closest('table')===table);
+   const grid=[];
+   rows.forEach((tr,ri)=>{
+    grid[ri]=grid[ri]||[];let ci=0;
+    for(const cell of [...tr.cells]){
+     while(grid[ri][ci]!==undefined)ci++;
+     const text=cleanCell(cell),rs=Math.max(1,Number(cell.rowSpan)||1),cs=Math.max(1,Number(cell.colSpan)||1);
+     for(let rr=ri;rr<ri+rs;rr++){
+      grid[rr]=grid[rr]||[];
+      for(let cc=ci;cc<ci+cs;cc++)grid[rr][cc]=text;
      }
-     if(found.length)break;
+     ci+=cs;
     }
-    if(found.length){headerIndex=ri;periods=found;break;}
+   });
+   return grid;
+  };
+  for(const table of doc.querySelectorAll('table')){
+   const grid=expandTable(table);if(!grid.length)continue;
+   let headerIndex=-1,periodCols=[];
+   for(let ri=0;ri<grid.length;ri++){
+    const row=grid[ri]||[];
+    if(!row.some(x=>/재무연월/.test(String(x||''))))continue;
+    const cols=[];
+    row.forEach((value,ci)=>{
+     const m=String(value||'').match(dateRe);
+     if(m){const month=Number(m[2]);if(month>=1&&month<=12)cols.push({col:ci,year:Number(m[1]),quarter:Math.ceil(month/3)});}
+    });
+    if(cols.length>=1){headerIndex=ri;periodCols=cols;break;}
    }
-   if(headerIndex<0||!periods.length)continue;
-
-   const result=new Map();
-   let inOperatingProfit=false;
-   for(let ri=headerIndex+1;ri<cellRows.length;ri++){
-    const cells=cellRows[ri]||[];
-    const rowText=cells.join(' ').replace(/\s+/g,' ').trim();
-    if(/당기순이익/.test(rowText))break;
-    if(/영업이익/.test(rowText))inOperatingProfit=true;
+   if(headerIndex<0||!periodCols.length)continue;
+   const result=new Map();let inOperatingProfit=false;
+   for(let ri=headerIndex+1;ri<grid.length;ri++){
+    const row=grid[ri]||[];const rowText=row.filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+    if(/당기순이익/.test(rowText)){if(inOperatingProfit)break;continue;}
+    if(row.some(x=>/^영업이익$/.test(String(x||'').trim())))inOperatingProfit=true;
     if(!inOperatingProfit)continue;
-
-    // HTML rowSpan means the 영업이익 cell exists only on the first row.
-    // Therefore keep the metric active until the next metric begins, and
-    // read each detail row's values immediately after its own label cell.
-    const fieldIndex=cells.findIndex(x=>/^(?:컨센서스|잠정치|surprise)$/i.test(String(x||'').trim()));
-    if(fieldIndex<0)continue;
-    const label=String(cells[fieldIndex]||'').trim();
+    const fieldCol=row.findIndex(x=>/^(?:컨센서스|잠정치|surprise)$/i.test(String(x||'').trim()));
+    if(fieldCol<0)continue;
+    const label=String(row[fieldCol]||'').trim();
     const field=/컨센서스/i.test(label)?'consensus':/잠정치/.test(label)?'preliminary':/surprise/i.test(label)?'surprise':null;
     if(!field)continue;
-    const valueCells=cells.slice(fieldIndex+1);
-    for(let pi=0;pi<periods.length;pi++){
-     const period=periods[pi],key=`${period.year}-${period.quarter}`;
+    for(const period of periodCols){
+     const key=`${period.year}-${period.quarter}`;
      const item=result.get(key)||{year:period.year,quarter:period.quarter,consensus:null,preliminary:null,surprise:null};
-     item[field]=naverSurpriseNumber(valueCells[pi]??'');
-     result.set(key,item);
+     item[field]=naverSurpriseNumber(row[period.col]??'');result.set(key,item);
     }
    }
    const rows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
@@ -1035,14 +1039,10 @@ function renderDartSurpriseAnalysis(){
   .map(r=>({year:Number(r.year),quarter:Number(r.quarter),dartActual:dartCompareEok(r.operatingProfit)}))
   .filter(r=>Number.isFinite(r.year)&&r.quarter>=1&&r.quarter<=4&&r.dartActual!==null);
  const naverRows=Array.isArray(dartNaverEarningsData)?dartNaverEarningsData:[];
- const estimates=dartConsensusQuarters.filter(q=>q?.est&&q.profit!==null)
-  .map(q=>({...parseDartComparePeriod(q),consensus:Number(q.profit)}))
-  .filter(q=>Number.isFinite(q.year)&&q.quarter>=1&&q.quarter<=4&&Number.isFinite(q.consensus));
  const periods=new Map();
  const keyOf=p=>`${p.year}-${p.quarter}`;
  for(const r of naverRows){const k=keyOf(r);periods.set(k,{year:r.year,quarter:r.quarter,consensus:r.consensus??null,preliminary:r.preliminary??null,naverSurprise:r.surprise??null})}
  for(const r of dartRows){const k=keyOf(r),p=periods.get(k)||{year:r.year,quarter:r.quarter};p.dartActual=r.dartActual;periods.set(k,p)}
- for(const e of estimates){const k=keyOf(e),p=periods.get(k)||{year:e.year,quarter:e.quarter};if(p.consensus===null||p.consensus===undefined)p.consensus=e.consensus;periods.set(k,p)}
  const rows=[...periods.values()]
   .filter(p=>p.consensus!==null&&p.consensus!==undefined||p.preliminary!==null&&p.preliminary!==undefined||p.dartActual!==null&&p.dartActual!==undefined||p.naverSurprise!==null&&p.naverSurprise!==undefined)
   .sort((a,b)=>b.year-a.year||b.quarter-a.quarter).slice(0,2);
@@ -1065,10 +1065,10 @@ function renderDartSurpriseAnalysis(){
    else{verdict='Earning In Line';verdictClass='neutral'}
   }
   const compare=`<span class="dart-compare-number ${signClass(diff)}">${fmt(diff)}</span><span class="dart-compare-bracket">[</span><span class="dart-compare-number ${signClass(naverSurprise)}">${fmt(naverSurprise)}</span><span class="dart-compare-bracket">]</span>`;
-  return `<tr><td class="period">${p.year}.${String(p.quarter*3).padStart(2,'0')}</td><td>${fmt(consensus)}</td><td>${fmt(preliminary)}</td><td>${fmt(dart)}</td><td class="compare">${compare}</td><td><span class="dart-earnings-verdict ${verdictClass}">${verdict}</span></td></tr>`;
+  return `<tr><td class="period">${p.year}.${String(p.quarter*3).padStart(2,'0')}.</td><td>${fmt(consensus)}</td><td>${fmt(preliminary)}</td><td>${fmt(dart)}</td><td class="compare">${compare}</td><td><span class="dart-earnings-verdict ${verdictClass}">${verdict}</span></td></tr>`;
  }).join('');
  host.className='dart-surprise-table-state';
- host.innerHTML=`<div class="dart-surprise-table-scroll"><table class="dart-surprise-table"><thead><tr><th>재무연월</th><th>컨센서스</th><th>잠정치</th><th>DART</th><th>비교치</th><th>Surprise</th></tr></thead><tbody>${tableRows}</tbody></table></div><div class="dart-surprise-table-note">단위: 억원 · 비교치 [ ] 안은 네이버 Surprise(%) · 최근 2개 분기</div>`;
+ host.innerHTML=`<div class="dart-surprise-table-scroll"><table class="dart-surprise-table"><thead><tr><th>재무연월</th><th>컨센서스</th><th>잠정 실적</th><th>확정 실적</th><th>비교치</th><th>Surprise</th></tr></thead><tbody>${tableRows}</tbody></table></div><div class="dart-surprise-table-note">단위: 억원 · 비교치 [ ] 안은 네이버 Surprise(%) · 최근 2개 분기</div>`;
 }
 
 function renderDartFinancials(data){
