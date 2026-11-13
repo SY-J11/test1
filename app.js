@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -956,69 +956,74 @@ function naverSurpriseNumber(value){
  const negative=/^\s*\(.*\)\s*$/.test(s)||/^\s*[-−]/.test(s);const n=Number(cleaned);return Number.isFinite(n)?(negative?-Math.abs(n):n):null;
 }
 function parseNaverEarningsSurprise(html){
+ const source=String(html||'');
+ // WiseReport does not put the earnings rows in the static <tbody>.
+ // EarnigList() embeds the exact source data in `var res = {...}` and
+ // builds the visible table from that object at runtime.
  try{
-  const doc=new DOMParser().parseFromString(String(html||''),'text/html');
-  const dateRe=/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/;
-  const cleanCell=cell=>(cell?.innerText||cell?.textContent||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
-  const expandTable=table=>{
-   const rows=[...table.rows],grid=[],active=new Map();
-   rows.forEach((tr,ri)=>{
-    const row=[];
-    // Carry cells whose rowspan continues into this row.
-    for(const [col,item] of [...active.entries()]){
-     row[col]=item.value;
-     item.left--;
-     if(item.left<=0)active.delete(col);
-    }
-    let col=0;
-    for(const cell of [...tr.cells]){
-     while(row[col]!==undefined)col++;
-     const value=cleanCell(cell),cs=Math.max(1,Number(cell.colSpan)||1),rs=Math.max(1,Number(cell.rowSpan)||1);
-     for(let k=0;k<cs;k++){
-      while(row[col+k]!==undefined)col++;
-      const target=col+k;row[target]=value;
-      if(rs>1)active.set(target,{value,left:rs-1});
-     }
-     col+=cs;
-    }
-    grid.push(row);
-   });
-   return grid;
-  };
-  for(const table of doc.querySelectorAll('table')){
-   const grid=expandTable(table);if(!grid.length)continue;
-   let headerIndex=-1,dateCols=[];
-   for(let ri=0;ri<grid.length;ri++){
-    if(!(grid[ri]||[]).some(x=>/재무연월/.test(String(x||''))))continue;
-    for(let rj=ri;rj<=Math.min(ri+2,grid.length-1);rj++){
-     const found=[];
-     (grid[rj]||[]).forEach((value,ci)=>{const m=String(value||'').match(dateRe);if(m){const month=Number(m[2]);if(month>=1&&month<=12)found.push({col:ci,year:Number(m[1]),quarter:Math.ceil(month/3)});}});
-     if(found.length){headerIndex=ri;dateCols=found;break;}
-    }
-    if(dateCols.length)break;
+  const match=source.match(/var\s+EarnigList\s*=\s*function\s*\(\s*\)\s*\{[\s\S]*?var\s+res\s*=\s*(\{[\s\S]*?\})\s*;\s*tmp\s*=/i);
+  if(match){
+   const payload=JSON.parse(match[1]);
+   const periods=Array.isArray(payload.yymm)?payload.yymm:[];
+   const series=Array.isArray(payload.data)?payload.data:[];
+   const rows=[];
+   for(let i=1;i<periods.length;i++){
+    const raw=String(periods[i]||'');
+    const parsed=raw.match(/^((?:19|20)\d{2})(\d{2})$/);
+    if(!parsed)continue;
+    const year=Number(parsed[1]),month=Number(parsed[2]);
+    if(month<1||month>12)continue;
+    const dataKey=String(i+1); // template skips object key '1'; visible periods start at yymm[1].
+    const valueAt=(seriesIndex)=>naverSurpriseNumber(series[seriesIndex]?.[dataKey]??null);
+    rows.push({
+     year,
+     quarter:Math.ceil(month/3),
+     consensus:valueAt(0),
+     preliminary:valueAt(1),
+     surprise:valueAt(2),
+     yoy:valueAt(3)
+    });
    }
-   if(headerIndex<0||!dateCols.length)continue;
-   const result=new Map();let inOperatingProfit=false;
-   for(let ri=headerIndex+1;ri<grid.length;ri++){
-    const cells=grid[ri]||[];const rowText=cells.join(' ').replace(/\s+/g,' ').trim();
-    if(/당기순이익/.test(rowText)){if(inOperatingProfit)break;continue;}
-    if(cells.some(x=>/^영업이익$/.test(String(x||'').trim())))inOperatingProfit=true;
-    if(!inOperatingProfit)continue;
-    const fieldIndex=cells.findIndex(x=>/^(?:컨센서스|잠정치|surprise)$/i.test(String(x||'').trim()));
-    if(fieldIndex<0)continue;
-    const label=String(cells[fieldIndex]||'').trim();
-    const field=/컨센서스/i.test(label)?'consensus':/잠정치/.test(label)?'preliminary':/surprise/i.test(label)?'surprise':null;
-    if(!field)continue;
-    for(const p of dateCols){
-     const key=`${p.year}-${p.quarter}`;
-     const item=result.get(key)||{year:p.year,quarter:p.quarter,consensus:null,preliminary:null,surprise:null};
-     item[field]=naverSurpriseNumber(cells[p.col]??'');result.set(key,item);
-    }
-   }
-   const rows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
    if(rows.some(r=>r.consensus!==null||r.preliminary!==null||r.surprise!==null))return rows;
   }
- }catch(e){console.warn('네이버 어닝서프라이즈 표 분석 실패',e)}
+ }catch(e){console.warn('네이버 어닝서프라이즈 원본 데이터 분석 실패',e)}
+ // Fallback for a future WiseReport page variant that renders the table
+ // directly in HTML instead of embedding the EarnigList data object.
+ try{
+  const doc=new DOMParser().parseFromString(source,'text/html');
+  const dateRe=/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/;
+  const cleanCell=cell=>(cell?.innerText||cell?.textContent||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+  for(const table of doc.querySelectorAll('table')){
+   const rows=[...table.rows];
+   const headerIndex=rows.findIndex(tr=>[...tr.cells].some(c=>/재무연월/.test(cleanCell(c))));
+   if(headerIndex<0)continue;
+   const dateCols=[];
+   for(let ri=headerIndex;ri<=Math.min(headerIndex+2,rows.length-1);ri++){
+    [...rows[ri].cells].forEach((cell,ci)=>{
+     const m=cleanCell(cell).match(dateRe);
+     if(m)dateCols.push({col:ci,year:Number(m[1]),quarter:Math.ceil(Number(m[2])/3)});
+    });
+    if(dateCols.length)break;
+   }
+   if(!dateCols.length)continue;
+   const result=new Map();let operating=false;
+   for(let ri=headerIndex+1;ri<rows.length;ri++){
+    const cells=[...rows[ri].cells].map(cleanCell),txt=cells.join(' ');
+    if(/당기순이익/.test(txt)){if(operating)break;continue}
+    if(cells.some(x=>/^영업이익$/.test(x)))operating=true;
+    if(!operating)continue;
+    const fi=cells.findIndex(x=>/^(컨센서스|잠정치|surprise)$/i.test(x));
+    if(fi<0)continue;
+    const label=cells[fi],field=/컨센서스/i.test(label)?'consensus':/잠정치/.test(label)?'preliminary':'surprise';
+    dateCols.forEach((p,idx)=>{
+     const key=`${p.year}-${p.quarter}`,item=result.get(key)||{year:p.year,quarter:p.quarter,consensus:null,preliminary:null,surprise:null};
+     item[field]=naverSurpriseNumber(cells[fi+1+idx]??null);result.set(key,item);
+    });
+   }
+   const parsedRows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
+   if(parsedRows.length)return parsedRows;
+  }
+ }catch(e){console.warn('네이버 어닝서프라이즈 HTML 분석 실패',e)}
  return [];
 }
 async function loadNaverEarningsSurprise(code){
