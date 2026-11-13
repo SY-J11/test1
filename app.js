@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -960,7 +960,8 @@ function parseNaverEarningsSurprise(html){
   const tables=[...doc.querySelectorAll('table')];
   for(const table of tables){
    const trs=[...table.querySelectorAll('tr')];if(!trs.length)continue;
-   // rowspan/colspan을 반영해 실제 화면의 열 위치를 복원한다.
+   // 실제 네이버 표는 '재무연월' 머리글과 영업이익/세부항목(컨센서스 등)이
+   // 별도 열로 구성될 수 있으므로 rowspan/colspan을 먼저 펼친다.
    const grid=[];
    trs.forEach((tr,ri)=>{
     grid[ri]=grid[ri]||[];let ci=0;
@@ -975,39 +976,54 @@ function parseNaverEarningsSurprise(html){
      ci+=cs;
     });
    });
-   const headerIndex=grid.findIndex(row=>row?.some(x=>/재무연월/.test(x||''))&&row.some(x=>/^(?:19|20)\d{2}\s*[./-]\s*\d{1,2}(?:\s*\([AE]\))?$/i.test(String(x||'').trim())));
+   const dateRe=/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/;
+   const headerIndex=grid.findIndex(row=>
+    row?.some(x=>/재무연월/.test(x||'')) &&
+    row.filter(x=>dateRe.test(String(x||''))).length>=1
+   );
    if(headerIndex<0)continue;
    const header=grid[headerIndex],periodCols=[];
    header.forEach((v,i)=>{
-    const m=String(v||'').match(/((?:19|20)\d{2})\s*[./-]\s*(\d{1,2})/);
-    if(m){const month=Number(m[2]);if(month>=1&&month<=12)periodCols.push({index:i,year:Number(m[1]),quarter:Math.ceil(month/3)})}
+    const m=String(v||'').match(dateRe);
+    if(m){
+     const month=Number(m[2]);
+     if(month>=1&&month<=12)periodCols.push({index:i,year:Number(m[1]),quarter:Math.ceil(month/3)});
+    }
    });
    if(!periodCols.length)continue;
    const result=new Map();
    let activeMetric='';
    for(let ri=headerIndex+1;ri<grid.length;ri++){
     const row=grid[ri]||[];
-    const label=row.slice(0,Math.min(...periodCols.map(x=>x.index))).filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
-    // 어닝서프라이즈 표는 '영업이익'이 첫 행에만 있고,
-    // 컨센서스/잠정치/Surprise는 그 아래 별도 행으로 배치된다.
-    // 영업이익 구간을 기억해 하위 행을 같은 항목으로 연결한다.
-    if(/당기순이익/.test(label)){activeMetric='';continue;}
-    if(/영업이익/.test(label))activeMetric='operatingProfit';
+    const cells=row.map(x=>String(x??'').replace(/\s+/g,' ').trim());
+    const rowText=cells.join(' ').replace(/\s+/g,' ').trim();
+    if(/당기순이익/.test(rowText)){activeMetric='';continue;}
+    if(/영업이익/.test(rowText))activeMetric='operatingProfit';
     if(activeMetric!=='operatingProfit')continue;
+
+    // 핵심: 기간 열 인덱스에 바로 값을 대입하지 않는다.
+    // 실제 표에서는 '컨센서스/잠정치/Surprise' 라벨이 기간 열보다 앞선 별도 셀에 있고,
+    // 해당 라벨 셀 다음부터 기간별 숫자가 시작한다.
+    const fieldIndex=cells.findIndex(x=>/^(?:컨센서스|잠정치|surprise)$/i.test(x) ||
+      /(?:컨센서스|잠정치|surprise)/i.test(x));
+    if(fieldIndex<0)continue;
+    const fieldText=cells[fieldIndex];
     let field=null;
-    if(/컨센서스/i.test(label))field='consensus';
-    else if(/잠정치/.test(label))field='preliminary';
-    else if(/surprise/i.test(label))field='surprise';
+    if(/컨센서스/i.test(fieldText))field='consensus';
+    else if(/잠정치/.test(fieldText))field='preliminary';
+    else if(/surprise/i.test(fieldText))field='surprise';
     if(!field)continue;
-    for(const period of periodCols){
+
+    const valueCells=cells.slice(fieldIndex+1);
+    for(let pi=0;pi<periodCols.length;pi++){
+     const period=periodCols[pi];
      const key=`${period.year}-${period.quarter}`;
      const item=result.get(key)||{year:period.year,quarter:period.quarter,consensus:null,preliminary:null,surprise:null};
-     item[field]=naverSurpriseNumber(row[period.index]);
+     item[field]=naverSurpriseNumber(valueCells[pi]??'');
      result.set(key,item);
     }
    }
    const rows=[...result.values()].sort((a,b)=>a.year-b.year||a.quarter-b.quarter);
-   // 유효한 값이 한 개라도 있는 기간만 반환한다. 0도 정상 실적값이다.
    if(rows.some(r=>r.consensus!==null||r.preliminary!==null||r.surprise!==null))return rows;
   }
  }catch(e){console.warn('네이버 어닝서프라이즈 표 분석 실패',e)}
