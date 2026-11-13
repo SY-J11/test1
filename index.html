@@ -1,60 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f3f5f9">
-<title>연준 인물 모니터 | FEDERAL RESERVE MONITOR</title>
-<link rel="stylesheet" href="fed.css?v=8">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=110">
+  <link rel="apple-touch-icon" href="./Stock.png">
 </head>
-<body>
-<div class="app">
-  <header class="topbar">
-    <a class="brand" href="./index.html"><span class="brand-mark">F</span><span><b>연준 인물 모니터</b><small>FEDERAL RESERVE MONITOR</small></span></a>
-    <div class="top-actions"><span id="updatedAt" class="updated">공식 명단 확인 중</span><button id="themeBtn" class="icon-btn" type="button" aria-label="명암 전환">◐</button><button id="refreshBtn" class="icon-btn" type="button" aria-label="새로고침">↻</button></div>
-  </header>
+<body><div class="app">
+<header><div class="brand"><i></i><div><b>종목 인사이트</b><small>STOCK INSIGHT PRO</small></div></div><div class="tools"><button id="theme" aria-label="테마 전환">◐</button><button id="refresh" aria-label="새로고침">↻</button></div></header>
+<main>
+<section class="search-card"><div class="search-heading"><div><span class="eyebrow">STOCK SEARCH</span><h2>어떤 종목을 찾으세요?</h2><p>종목명 또는 6자리 종목코드로 검색하세요.</p></div><div class="search-symbol">⌕</div></div>
+<div class="searchbox"><span class="magnify"></span><input id="query" type="search" placeholder="종목명 또는 6자리 종목코드" autocomplete="off"><button id="clear" class="clear" hidden>×</button><button id="searchBtn" class="search-btn">검색 →</button></div><div id="results" class="results" hidden></div><section class="quick-rankings" aria-label="빠른 검색 순위">
+<div class="quick-group quick-group-full favorite-group"><h3>★ 관심종목 <small id="favorite-count">0개</small></h3><div id="favorite-list" class="quick favorite-list"><span class="quick-loading">종목 옆의 ☆를 눌러 관심종목을 추가하세요.</span></div></div>
+<div class="quick-group quick-group-full"><h3>전체 시가총액 순 20개</h3><div id="quick-all-cap" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<details class="quick-more"><summary><span>빠른 검색 순위 더보기</span><span class="quick-arrow" aria-hidden="true">⌄</span></summary><div class="quick-more-grid">
+<div class="quick-group"><h3>코스피 시가총액 순 10개</h3><div id="quick-kospi-cap" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group"><h3>코스닥 시가총액 순 10개</h3><div id="quick-kosdaq-cap" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group quick-group-full"><h3>전체 거래대금 순 20개</h3><div id="quick-value" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group"><h3>코스피 거래대금 순 10개</h3><div id="quick-kospi-value" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group"><h3>코스닥 거래대금 순 10개</h3><div id="quick-kosdaq-value" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group quick-group-full"><h3>전체 거래량 순 20개</h3><div id="quick-volume" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group"><h3>코스피 거래량 순 10개</h3><div id="quick-kospi-volume" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+<div class="quick-group"><h3>코스닥 거래량 순 10개</h3><div id="quick-kosdaq-volume" class="quick"><span class="quick-loading">불러오는 중…</span></div></div>
+</div></details>
+</section><p id="status" class="status">네이버 증권 데이터 연결 중…</p></section>
+<section class="card quote"><div class="name"><div><span id="name">종목을 검색하세요</span><small id="code"></small></div><button id="fav">☆</button></div><div class="price" id="price">— <span id="change">종목을 선택하면 시세가 표시됩니다.</span></div></section>
+<section class="card daily-chart-card"><div class="daily-chart-heading"><b id="dailyChartTitle">120일봉 차트</b><span id="dailyChartRange">최근 거래일</span></div><div class="daily-chart-tabs" role="tablist" aria-label="차트 기간"><button type="button" class="active" data-period="day" role="tab" aria-selected="true">일</button><button type="button" data-period="week" role="tab" aria-selected="false">주</button><button type="button" data-period="month" role="tab" aria-selected="false">월</button><button type="button" data-period="year" role="tab" aria-selected="false">년</button></div><div id="dailyRangeTabs" class="daily-range-tabs" aria-label="조회 기간"></div><div id="dailyChart" class="daily-chart"><div class="chart-empty">종목을 검색하면 일봉 차트가 표시됩니다.</div></div></section>
+<section class="grid g4"><div class="metric"><label>PER</label><b id="per">—</b></div><div class="metric"><label>PBR</label><b id="pbr">—</b></div><div class="metric"><label>EPS</label><b id="eps">—</b></div><div class="metric"><label>시가총액</label><b id="cap">—</b></div></section>
+<section class="grid g3"><div class="metric"><label>지난해 영업이익</label><b id="annualOp">—</b></div><div class="metric"><label>최근 4Q 영업이익</label><b id="ttmOp">—</b></div><div class="metric"><label>최근 4Q 순이익 (순이익률)</label><b id="ttmNet">—</b></div></section>
+<section class="card eps"><label>최근 6분기 EPS</label><div class="epsrow" id="epsRows"></div></section>
+<section class="grid g3"><div class="metric"><label>최근 ROE</label><b id="roe">—</b></div><div class="metric"><label>부채비율</label><b id="debt">—</b></div><div class="metric"><label>외국인소진율</label><b id="foreignFloat">—</b></div></section>
+<section class="card inv-card"><div class="daily-chart-heading"><b id="invTitle">투자자 동향 · 60일</b><span id="invRange"></span></div><div id="invTabs" class="daily-range-tabs" aria-label="투자자 동향 조회 기간"></div><div id="invChart" class="inv-chart"><div class="chart-empty">종목을 검색하면 투자자 동향이 표시됩니다.</div></div><div id="invSum" class="inv-sum"></div><div id="invTable" class="inv-table"></div></section>
+<section class="grid g3 flows"><div class="metric"><label>외국인 순매수 <small>[통합]</small></label><b id="fTotalCount">자료 없음</b><em id="fTotalStreak">—</em><em class="sell-streak" id="fTotalSellStreak">—</em></div><div class="metric"><label>외국인 순매수 <small>[KRX]</small></label><b id="fKrCount">자료 없음</b><em id="fKrStreak">—</em><em class="sell-streak" id="fKrSellStreak">—</em></div><div class="metric"><label>외국인 순매수 <small>[NXT]</small></label><b id="fNxCount">자료 없음</b><em id="fNxStreak">—</em><em class="sell-streak" id="fNxSellStreak">—</em></div><div class="metric"><label>기관 순매수 <small>[통합]</small></label><b id="iTotalCount">자료 없음</b><em id="iTotalStreak">—</em><em class="sell-streak" id="iTotalSellStreak">—</em></div><div class="metric"><label>기관 순매수 <small>[KRX]</small></label><b id="iKrCount">자료 없음</b><em id="iKrStreak">—</em><em class="sell-streak" id="iKrSellStreak">—</em></div><div class="metric"><label>기관 순매수 <small>[NXT]</small></label><b id="iNxCount">자료 없음</b><em id="iNxStreak">—</em><em class="sell-streak" id="iNxSellStreak">—</em></div></section>
+<section class="grid g3 flows combined-flows"><div class="metric"><label>외국인+기관 순매수 <small>[통합]</small></label><b id="xTotalCount">자료 없음</b></div><div class="metric"><label>외국인+기관 순매수 <small>[KRX]</small></label><b id="xKrCount">자료 없음</b></div><div class="metric"><label>외국인+기관 순매수 <small>[NXT]</small></label><b id="xNxCount">자료 없음</b></div></section>
+<p class="hint">수급 항목은 공개 응답에서 확인할 수 있는 경우에만 표시합니다.</p>
+<section class="grid g3"><div class="metric"><label>멀티플 · 지난해</label><b id="annualMultiple">—</b></div><div class="metric"><label>멀티플 · 최근 4Q</label><b id="ttmMultiple">—</b></div><div class="metric"><label>멀티플(E) · 최근 4Q</label><b id="estTtmMultiple">—</b></div></section>
+<section class="grid g3 fair-prices"><div class="metric"><label>추정 적정 주가 · 지난해</label><b id="fairAnnual">—</b></div><div class="metric"><label>추정 적정 주가 · 최근 4Q</label><b id="fairTtm">—</b></div><div class="metric"><label>추정 적정 주가(E) · 최근 4Q</label><b id="fairEstTtm">—</b></div></section>
+<section class="card chartcard"><div class="charttitle"><b>최근 6분기 영업이익</b><span>영업이익(영업이익률%)</span></div><div class="cons"><b>컨센서스</b><span>목표주가 평균 <strong id="target">—</strong></span><span>평균 투자의견 <strong id="opinion">—</strong></span></div><div class="chart-scroll"><div class="chart" id="chart"><div class="chart-empty">데이터 조회 중…</div></div><div class="labels" id="labels"></div></div><section class="dart-link-wrap"><a id="dartLink" class="dart-link" href="https://dart.fss.or.kr/dsab001/main.do">DART 전자공시 바로가기 ↗</a></section></section>
+<section class="card dart-financial-card" id="dartFinancialCard">
+  <div class="dart-financial-head">
+    <div><span class="eyebrow">OPENDART · OFFICIAL FINANCIALS</span><h3>DART 분기 실적 자동 분석</h3><p id="dartFinancialStatus">종목을 선택하면 공식 공시 재무제표를 조회합니다.</p></div>
+    <button id="dartFinancialRefresh" type="button" class="dart-refresh">↻ 새로고침</button>
+  </div>
+  <div class="dart-financial-summary" id="dartFinancialSummary">
+    <div><small>최근 분기 매출액</small><b>—</b></div><div><small>최근 분기 영업이익</small><b>—</b></div><div><small>최근 분기 순이익</small><b>—</b></div>
+  </div>
+  <div class="dart-financial-chart-wrap"><div class="dart-financial-chart-title"><b>최근 8개 분기 실적</b><small>단위: 억 원 · 연결재무제표 우선</small></div><div id="dartFinancialChart" class="dart-financial-chart"><div class="chart-empty">종목을 선택하면 DART 실적이 표시됩니다.</div></div></div>
+  <div class="dart-financial-table-wrap"><table class="dart-financial-table"><thead><tr><th>분기</th><th>매출액</th><th>영업이익</th><th>순이익</th><th>영업이익률</th></tr></thead><tbody id="dartFinancialRows"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div>
+  <p class="dart-financial-note">DART 공시 원문 기준입니다. 분기 누적 보고서는 직전 누적 실적을 차감해 단독 분기로 환산하며, 아직 공시되지 않은 분기는 표시하지 않습니다.</p>
+</section>
+<section class="card dart-surprise-card" id="dartSurpriseCard" aria-live="polite">
+  <div class="dart-surprise-heading"><span class="eyebrow">QUARTERLY EARNINGS CHECK</span><b>분기 영업이익 예상치 비교</b></div>
+  <div id="dartSurpriseResult" class="dart-surprise-result actual-only"><strong>종목을 선택하면 분기 실적을 비교합니다.</strong></div>
+</section>
+<p class="disclaimer">공개 API 응답에 포함된 데이터만 표시합니다. 단위가 확인되지 않은 값은 계산에 사용하지 않습니다.</p><footer>STOCK INSIGHT PRO · 수치 확인용 참고 정보</footer>
 
-  <main>
-    <section class="hero">
-      <div><span class="eyebrow">US MONETARY POLICY · PEOPLE TRACKER</span><h1>연준을 움직이는<br><em>핵심 인물</em>을 추적합니다</h1><p>현직 연준 이사회와 FOMC 구성원을 공식 명단으로 자동 갱신하고, 인물별 최신 뉴스 검색 결과를 목록으로 제공합니다.</p></div>
-      <div class="hero-date"><span>OFFICIAL ROSTER</span><b id="rosterYear">—</b><small>Federal Reserve</small></div>
-    </section>
-
-    <section class="summary-grid">
-      <article class="summary-card"><span>BOARD OF GOVERNORS</span><b id="boardCount">—</b><small>연준 이사회</small></article>
-      <article class="summary-card"><span>FOMC VOTING MEMBERS</span><b id="fomcCount">—</b><small>투표권 보유 위원</small></article>
-      <article class="summary-card"><span>ALTERNATE MEMBERS</span><b id="alternateCount">—</b><small>대체 위원</small></article>
-    </section>
-
-    <nav class="tabs" aria-label="인물 구분">
-      <button class="tab active" data-tab="board">연준 이사 7명 <small>FED GOVERNORS</small></button>
-      <button class="tab" data-tab="fomc">FOMC Members <small>투표권 보유 위원</small></button>
-    </nav>
-
-    <section class="intro card">
-      <div><span class="eyebrow">CURRENT MEMBERSHIP</span><h2 id="sectionTitle">Federal Reserve Board of Governors</h2><p id="sectionDescription">연준 이사회 현직 구성원입니다. 인물 카드를 선택하면 해당 인물의 최신 뉴스 검색 결과를 확인할 수 있습니다.</p></div>
-      <div class="intro-links"><a href="https://www.federalreserve.gov/aboutthefed/bios/board/" target="_blank" rel="noopener">연준 이사 공식 명단 ↗</a><a href="https://www.federalreserve.gov/monetarypolicy/FOMC.htm" target="_blank" rel="noopener">FOMC 공식 명단 ↗</a></div>
-    </section>
-
-    <div class="content-layout">
-      <section class="people-area">
-        <div class="section-head"><div><span class="eyebrow">PEOPLE</span><h2 id="peopleHeading">현직 연준 이사</h2></div><input id="peopleSearch" type="search" placeholder="이름 또는 직책 검색" aria-label="인물 검색"></div>
-        <div id="peopleList" class="people-grid"><div class="loading">연준 공식 명단을 불러오고 있습니다.</div></div>
-        <section id="alternatesSection" class="alternates card" hidden><div class="section-head"><div><span class="eyebrow">NON-VOTING / ALTERNATES</span><h3>대체 위원</h3></div><span class="muted">FOMC Alternate Members</span></div><div id="alternatesList" class="alternate-list"></div></section>
-      </section>
-
-      <aside class="news-area card">
-        <div class="news-head"><div><span class="eyebrow">LATEST COVERAGE</span><h2 id="newsPerson">인물을 선택하세요</h2><p id="newsQuery">선택한 인물의 최신 뉴스</p></div><button id="searchAgain" class="text-btn" type="button" disabled>다시 검색 ↻</button></div>
-        <div id="newsStatus" class="news-status">왼쪽에서 인물을 선택하면 최신 뉴스가 표시됩니다.</div>
-        <div id="newsList" class="news-list"></div><button id="loadMoreNews" class="text-btn load-more-news" type="button" hidden>기사 5개 더 보기 ↓</button>
-        <div class="news-foot"><span id="newsProvider">이름 기준 최신 뉴스 검색 결과</span><a id="googleSearch" href="#" target="_blank" rel="noopener" hidden>Google News에서 더 보기 ↗</a></div>
-      </aside>
-    </div>
-
-    <footer><span>자료 출처: Board of Governors · Federal Open Market Committee</span><span>명단 자동 확인 · 뉴스 목록 및 원문 링크 제공</span></footer>
-  </main>
+</main></div>
+<div id="dartModal" class="dart-modal" hidden role="dialog" aria-modal="true" aria-label="DART 전자공시">
+  <div class="dart-modal-panel">
+    <div class="dart-modal-head"><strong>DART 전자공시</strong><button id="dartClose" type="button" aria-label="닫기">✕</button></div>
+    <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
+  </div>
 </div>
-<div id="toast" class="toast" role="status"></div>
-<script src="fed.js?v=8"></script>
-</body>
-</html>
+<script src="app.js?v=117"></script></body></html>
