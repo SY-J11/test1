@@ -167,6 +167,7 @@
 .dart-surprise-table td:not(.period):not(.dart-earnings-verdict-cell){text-align:right}
 .dart-surprise-table td.period,
 .dart-surprise-table td:last-child{text-align:center}
+.dart-surprise-table td:last-child .dart-earnings-verdict{display:inline-block;text-align:center}
 .dart-surprise-table thead th:last-child{text-align:center}
 .dart-financial-table th:nth-child(1){width:17%}
 .dart-financial-table th:nth-child(2),
@@ -201,4 +202,34 @@
   .dart-financial-table th,.dart-financial-table td{font-size:7px;padding-left:1px;padding-right:1px}
   .dart-surprise-table th,.dart-surprise-table td{font-size:6.5px;letter-spacing:-.55px}
   .dart-surprise-table .dart-earnings-verdict{font-size:6px}
+}
+
+/* V21: Surprise 판정 문구/배지 및 마지막 표 제목 정렬 보정 */
+.dart-surprise-table thead th:nth-child(2),
+.dart-surprise-table thead th:nth-child(3),
+.dart-surprise-table thead th:nth-child(4),
+.dart-surprise-table thead th:nth-child(5){
+  text-align:center !important;
+}
+.dart-surprise-table tbody td:last-child{
+  text-align:center !important;
+  vertical-align:middle;
+}
+.dart-surprise-table tbody td:last-child .dart-earnings-verdict{
+  display:flex !important;
+  width:max-content;
+  max-width:100%;
+  margin-left:auto;
+  margin-right:auto;
+  justify-content:center;
+  align-items:center;
+  text-align:center !important;
+  box-sizing:border-box;
+}
+@media(max-width:600px){
+  .dart-surprise-table tbody td:last-child .dart-earnings-verdict{
+    width:100%;
+    padding-left:1px;
+    padding-right:1px;
+  }
 }
