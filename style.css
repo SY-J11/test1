@@ -275,3 +275,7 @@
 .dart-fundamental-table th{color:var(--muted,#8490a3);background:var(--soft,#f7f8fa);font-weight:600}
 .dart-fundamental-table td.negative{color:#3979d8}
 @media(max-width:520px){.dart-fundamental-card{padding:13px}.dart-fundamental-head h3{font-size:15px}.dart-fundamental-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dart-fundamental-metric b{font-size:13px}.dart-fundamental-chart-grid{gap:7px}.dart-fundamental-chart-card{padding:8px}.dart-line-chart{height:125px}.dart-period-switch button{padding:7px 8px;font-size:10px}.dart-fundamental-table{font-size:9px}}
+
+/* 그래프 범례: 색상과 항목명이 모바일에서도 분명하게 보이도록 표시 */
+.dart-line-legend{gap:12px;margin-top:5px;font-size:10px;font-weight:600}
+.dart-line-legend i{width:18px;height:3px}

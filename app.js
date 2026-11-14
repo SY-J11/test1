@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1204,7 +1204,7 @@ function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
  const vals=valid.flatMap(r=>keys.map(k=>r[k]).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number));
  let min=Math.min(0,...vals),max=Math.max(0,...vals);if(max===min){max+=1;min-=1;}const pad=(max-min)*.08;min-=pad;max+=pad;
  const x=i=>L+(valid.length===1?plotW/2:i/(valid.length-1)*plotW),y=v=>T+(max-Number(v))/(max-min)*plotH;
- const colors=['#3979d8','#16a36a','#d58b28'];
+ const colors=['#3979d8','#16a36a','#d58b28']; // CAPEX=blue, FCF=green
  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${labels.join(', ')} 추이 그래프">`;
  for(let g=0;g<4;g++){const yy=T+g*plotH/3;svg+=`<line class="gridline" x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}"/>`;}
  keys.forEach((key,ki)=>{
@@ -1228,7 +1228,7 @@ function renderDartFundamentals(data){
  dartFundamentalRenderLine('dartFundChartOps',rows,['ocf','rd'],['영업현금흐름','R&D']);
  dartFundamentalRenderLine('dartFundChartDebt',rows,['netDebt'],['순차입금']);
  dartFundamentalRenderLine('dartFundChartRatio',rows,['debtRatio'],['부채비율'],'%');
- const body=$('dartFundamentalRows');if(body)body.innerHTML=rows.slice().reverse().map(r=>{const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;const cell=(v,pct=false)=>v===null||v===undefined?'—':pct?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`;return `<tr><td>${label}</td><td>${cell(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${cell(r.fcf)}</td><td>${cell(r.ocf)}</td><td class="${r.netDebt<0?'negative':''}">${cell(r.netDebt)}</td><td>${cell(r.debtRatio,true)}</td></tr>`}).join('')||'<tr><td colspan="6">해당 기간 공시 자료 없음</td></tr>';
+ const body=$('dartFundamentalRows');if(body)body.innerHTML=rows.slice().reverse().map(r=>{const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;const cell=(v,pct=false)=>v===null||v===undefined?'—':pct?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`;return `<tr><td>${label}</td><td>${cell(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${cell(r.fcf)}</td><td>${cell(r.ocf)}</td><td>${cell(r.rd)}</td><td class="${r.netDebt<0?'negative':''}">${cell(r.netDebt)}</td><td>${cell(r.debtRatio,true)}</td></tr>`}).join('')||'<tr><td colspan="7">해당 기간 공시 자료 없음</td></tr>';
  const note=$('dartFundamentalProductionNote');if(note)note.textContent=data.production?.note||'기업별 사업보고서 공시 여부에 따라 표시합니다.';
  const status=$('dartFundamentalStatus');if(status)status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · 6시간 캐시`;
 }

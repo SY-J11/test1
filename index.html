@@ -48,6 +48,11 @@
   <div class="dart-financial-table-wrap"><table class="dart-financial-table"><thead><tr><th>분기</th><th>매출액</th><th>영업이익</th><th>순이익</th><th>영업이익률</th></tr></thead><tbody id="dartFinancialRows"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div>
   <p class="dart-financial-note">DART 공시 원문 기준입니다. 분기 누적 보고서는 직전 누적 실적을 차감해 단독 분기로 환산하며, 아직 공시되지 않은 분기는 표시하지 않습니다.</p>
 </section>
+
+<section class="card dart-surprise-card" id="dartSurpriseCard" aria-live="polite">
+  <div class="dart-surprise-heading"><span class="eyebrow">QUARTERLY EARNINGS CHECK</span><b>분기 영업이익 예상치 비교</b></div>
+  <div id="dartSurpriseResult" class="dart-surprise-result actual-only"><strong>종목을 선택하면 분기 실적을 비교합니다.</strong></div>
+</section>
 <section class="card dart-fundamental-card" id="dartFundamentalCard">
   <div class="dart-fundamental-head">
     <div><span class="eyebrow">OPENDART · CORPORATE FUNDAMENTALS</span><h3>DART 기업 펀더멘털 분석</h3><p id="dartFundamentalStatus">필요할 때 조회합니다. 기존 시세·실적 로딩에는 영향을 주지 않습니다.</p></div>
@@ -66,13 +71,9 @@
       <article class="dart-fundamental-chart-card"><b>부채비율</b><small>부채총계 ÷ 자본총계 · %</small><div id="dartFundChartRatio" class="dart-line-chart"></div></article>
     </div>
     <div class="dart-fundamental-production"><b>생산능력 · 수주잔고</b><p id="dartFundamentalProductionNote">사업보고서 원문에서 기업별 공시 항목을 확인합니다.</p><div class="dart-fundamental-empty">생산설비 가동률과 수주잔고는 기업별 공시 형식이 달라 정형 API에서 일괄 제공되지 않습니다. 확인 가능한 공시만 추후 연결하며, 임의 추정값은 표시하지 않습니다.</div></div>
-    <div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>CAPEX</th><th>FCF</th><th>영업현금흐름</th><th>순차입금</th><th>부채비율</th></tr></thead><tbody id="dartFundamentalRows"><tr><td colspan="6">조회 대기 중</td></tr></tbody></table></div>
+    <div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>CAPEX</th><th>FCF</th><th>영업현금흐름</th><th>R&amp;D</th><th>순차입금</th><th>부채비율</th></tr></thead><tbody id="dartFundamentalRows"><tr><td colspan="7">조회 대기 중</td></tr></tbody></table></div>
     <p class="dart-financial-note">연결재무제표 우선 · 단위 억 원. FCF = 영업활동현금흐름 − CAPEX. 계정이 공시되지 않거나 계산 근거가 부족한 값은 표시하지 않습니다. 분기 현금흐름은 누적액을 단독 분기로 환산합니다.</p>
   </div>
-</section>
-<section class="card dart-surprise-card" id="dartSurpriseCard" aria-live="polite">
-  <div class="dart-surprise-heading"><span class="eyebrow">QUARTERLY EARNINGS CHECK</span><b>분기 영업이익 예상치 비교</b></div>
-  <div id="dartSurpriseResult" class="dart-surprise-result actual-only"><strong>종목을 선택하면 분기 실적을 비교합니다.</strong></div>
 </section>
 <p class="disclaimer">공개 API 응답에 포함된 데이터만 표시합니다. 단위가 확인되지 않은 값은 계산에 사용하지 않습니다.</p><footer>STOCK INSIGHT PRO · 수치 확인용 참고 정보</footer>
 
@@ -83,7 +84,7 @@
     <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
   </div>
 </div>
-<script src="app.js?v=144"></script>
+<script src="app.js?v=145"></script>
 <script>
 window.addEventListener('load', function () {
   try {
