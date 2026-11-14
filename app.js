@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1223,21 +1223,26 @@ function renderDartFundamentals(data){
  const rows=(dartFundamentalPeriod==='annual'?data.annual:data.quarters)||[];
  const latest=rows[rows.length-1]||{};
  const content=$('dartFundamentalContent');if(content)content.hidden=false;
- const metricItems=[['CAPEX',latest.capex,'설비투자액'],['FCF',latest.fcf,'잉여현금흐름'],['영업현금흐름',latest.ocf,'OCF'],['순차입금',latest.netDebt,'차입금 − 현금'],['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],['R&D',latest.rd,latest.rd===null||latest.rd===undefined?'별도 계정 공시 없음':'연구개발비'],['현금성 자산',latest.cash,'현금 및 현금성 자산'],['재고자산',latest.inventory,'재무상태표 기준']];
+ const utilizationRows=Array.isArray(data.production?.utilization)?data.production.utilization:[];
+ const latestUtilization=utilizationRows.length?utilizationRows[utilizationRows.length-1]:null;
+ const utilizationValue=latestUtilization?.rate??latestUtilization?.utilization??null;
+ const metricItems=[['CAPEX',latest.capex,'설비투자액'],['FCF',latest.fcf,'잉여현금흐름'],['영업현금흐름',latest.ocf,'OCF'],['순차입금',latest.netDebt,'차입금 − 현금'],['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],['생산시설 가동률',utilizationValue,latestUtilization?.period||'사업보고서 공시 기준','%'],['현금성 자산',latest.cash,'현금 및 현금성 자산'],['재고자산',latest.inventory,'재무상태표 기준']];
  const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
  dartFundamentalRenderLine('dartFundChartCash',rows,['capex','fcf'],['CAPEX','FCF']);
- dartFundamentalRenderLine('dartFundChartOps',rows,['ocf','rd'],['영업현금흐름','R&D']);
+ dartFundamentalRenderLine('dartFundChartOps',rows,['ocf'],['영업현금흐름']);
  dartFundamentalRenderLine('dartFundChartDebt',rows,['netDebt'],['순차입금']);
  dartFundamentalRenderLine('dartFundChartRatio',rows,['debtRatio'],['부채비율'],'%');
- const body=$('dartFundamentalRows');if(body)body.innerHTML=rows.slice().reverse().map(r=>{const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;const cell=(v,pct=false)=>v===null||v===undefined?'—':pct?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`;return `<tr><td>${label}</td><td>${cell(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${cell(r.fcf)}</td><td>${cell(r.ocf)}</td><td>${cell(r.rd)}</td><td class="${r.netDebt<0?'negative':''}">${cell(r.netDebt)}</td><td>${cell(r.debtRatio,true)}</td></tr>`}).join('')||'<tr><td colspan="7">해당 기간 공시 자료 없음</td></tr>';
+ const utilizationByPeriod=new Map(utilizationRows.map(x=>[String(x.period||x.year||''),x.rate??x.utilization??null]));
+ const body=$('dartFundamentalRows');if(body)body.innerHTML=rows.slice().reverse().map(r=>{const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;const cell=(v,pct=false)=>v===null||v===undefined?'—':pct?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`;const util=utilizationByPeriod.get(String(r.year))??null;return `<tr><td>${label}</td><td>${cell(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${cell(r.fcf)}</td><td>${cell(r.ocf)}</td><td>${cell(util,true)}</td><td class="${r.netDebt<0?'negative':''}">${cell(r.netDebt)}</td><td>${cell(r.debtRatio,true)}</td></tr>`}).join('')||'<tr><td colspan="7">해당 기간 공시 자료 없음</td></tr>';
+ const utilizationHost=$('dartFundamentalUtilization');if(utilizationHost){utilizationHost.innerHTML=utilizationRows.length?utilizationRows.slice().reverse().map(x=>`<div class="dart-utilization-row"><b>${x.period||x.year||'공시 기간'}</b><strong>${Number(x.rate??x.utilization).toLocaleString('ko-KR',{maximumFractionDigits:1})}%</strong></div>`).join(''):'생산시설 가동률 공시 자료를 확인할 수 없습니다. 사업보고서에 해당 수치가 공시되지 않았거나 자동으로 판독할 수 없는 경우 ‘—’로 표시합니다.';}
  const note=$('dartFundamentalProductionNote');if(note)note.textContent=data.production?.note||'기업별 사업보고서 공시 여부에 따라 표시합니다.';
- const status=$('dartFundamentalStatus');if(status){const rdAvailable=rows.some(r=>r.rd!==null&&r.rd!==undefined&&Number.isFinite(Number(r.rd)));status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · R&D ${rdAvailable?'확인':'별도 계정 미공시'} · 6시간 캐시`; }
+ const status=$('dartFundamentalStatus');if(status){status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · 생산시설 가동률 공시 별도 확인 필요 · 6시간 캐시`; }
 }
 async function loadDartFundamentals(force=false){
  const code=current?.code;if(!/^\d{6}$/.test(code||''))return;
  const status=$('dartFundamentalStatus'),button=$('dartFundamentalLoad');
  if(button){button.disabled=true;button.textContent='조회 중…';}
- if(status)status.textContent='DART 현금흐름 및 재무상태 데이터를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
+ if(status)status.textContent='DART 재무정보와 생산시설 가동률 공시 데이터를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
  try{
   const url=`${DART_PROXY}/?dart=fundamentals&stock_code=${encodeURIComponent(code)}${force?'&refresh=1':''}`;
   const res=await fetch(url,{cache:'no-store'});const data=await res.json();

@@ -280,3 +280,8 @@
 /* 그래프 범례: 색상과 항목명이 모바일에서도 분명하게 보이도록 표시 */
 .dart-line-legend{gap:12px;margin-top:5px;font-size:10px;font-weight:600}
 .dart-line-legend i{width:18px;height:3px}
+
+/* V25 생산시설 가동률 표시 */
+.dart-utilization-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line,#e6eaf1)}
+.dart-utilization-row:last-child{border-bottom:0}
+.dart-utilization-row strong{font-size:15px}
