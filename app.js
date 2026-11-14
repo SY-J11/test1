@@ -702,63 +702,71 @@ function normalize(item){const code=String(item.code||item.itemCode||item.stockC
 async function search(q){if(/^\d{6}$/.test(q))return[{name:seed.find(x=>x.code===q)?.name||q,code:q}];const d=await first([`${API}/front-api/search/autoComplete?query=${encodeURIComponent(q)}&target=stock,index,marketindicator,coin,ipo`]);const a=d?.result?.items||d?.items||d?.result||[];return(Array.isArray(a)?a:[]).map(normalize).filter(Boolean).slice(0,12)}
 function showResults(items,q,msg=''){const box=$('results');box.hidden=!q;if(msg){box.innerHTML=`<div class="result">${escapeHtml(msg)}</div>`;return}if(!items.length){box.innerHTML='<div class="result">검색 결과가 없습니다.</div>';return}box.innerHTML=items.map(x=>`<button class="result" data-code="${x.code}" data-name="${escapeHtml(x.name)}">${escapeHtml(x.name)}<small>${x.code}</small> ›</button>`).join('');box.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>load(b.dataset.code,b.dataset.name))}
 
-// 공유 URL의 다양한 검색 파라미터를 해석해 기존 상세 화면으로 연결한다.
+// URL 검색 파라미터를 원문과 URLSearchParams 양쪽에서 읽어 종목을 자동 조회한다.
 function initialStockFromUrl(){
  try{
-  const params=new URLSearchParams(location.search);
-  const getFirst=keys=>{
+  const rawSearch=String(location.search||'').replace(/^\?/,'');
+  const params=new URLSearchParams(rawSearch);
+  const decode=value=>{
+   let s=String(value??'').trim();
+   for(let i=0;i<3;i++){
+    try{const d=decodeURIComponent(s.replace(/\+/g,'%20'));if(d===s)break;s=d}catch{break}
+   }
+   return s.trim();
+  };
+  const get=(keys)=>{
    for(const key of keys){
-    const value=params.get(key);
-    if(value!==null&&String(value).trim())return String(value).trim();
+    let v=params.get(key);
+    if(v===null){
+     // 일부 공유/리다이렉트 주소에서 한글 키가 퍼센트 인코딩된 채 남는 경우도 처리
+     const encoded=encodeURIComponent(key).toLowerCase();
+     const part=rawSearch.split('&').find(x=>x.split('=')[0].toLowerCase()===encoded);
+     if(part!==undefined)v=part.includes('=')?part.slice(part.indexOf('=')+1):'';
+    }
+    if(v!==null&&String(v).trim())return decode(v);
    }
    return '';
   };
-  const decodeRepeated=value=>{
-   let out=String(value??'').trim();
-   for(let i=0;i<3;i++){
-    try{const next=decodeURIComponent(out.replace(/\+/g,'%20'));if(next===out)break;out=next}catch{break}
-   }
-   return out.trim();
-  };
-  // 네이버 종목 URL은 한 번 또는 여러 번 인코딩된 경우 모두 코드로 변환한다.
-  const urlValue=getFirst(['url','naver','stockUrl','네이버주소','네이버주소']);
-  if(urlValue){
-   const decodedUrl=decodeRepeated(urlValue);
+
+  // 네이버 종목 URL은 URL 전체가 인코딩되었거나 일부만 인코딩된 경우 모두 처리
+  const naverUrl=get(['url','naver','stockUrl','네이버주소']);
+  if(naverUrl){
+   const decoded=decode(naverUrl);
+   const codeMatch=decoded.match(/(?:domestic\/stock\/|item\/|(?:\?|&)code=)(\d{6})(?:\/|&|$)/i);
+   if(codeMatch)return{code:codeMatch[1]};
    try{
-    const u=new URL(decodedUrl);
-    const fromQuery=u.searchParams.get('code')||u.searchParams.get('itemCode')||u.searchParams.get('stockCode');
-    if(fromQuery&&/^\d{6}$/.test(fromQuery.trim()))return{code:fromQuery.trim()};
-    const match=u.pathname.match(/(?:domestic\/stock\/|item\/)(\d{6})(?:\/|$)/i);
-    if(match)return{code:match[1]};
+    const u=new URL(decoded);
+    const c=u.searchParams.get('code')||u.searchParams.get('itemCode')||u.searchParams.get('stockCode');
+    if(c&&/^\d{6}$/.test(c.trim()))return{code:c.trim()};
+    const m=u.pathname.match(/(?:domestic\/stock\/|item\/)(\d{6})(?:\/|$)/i);
+    if(m)return{code:m[1]};
    }catch{}
-   const match=decodedUrl.match(/(?:code=|domestic(?:%2f|\/)stock(?:%2f|\/)|item(?:%2f|\/))(\d{6})/i);
-   if(match)return{code:match[1]};
+   // 인코딩된 슬래시가 남아 있는 URL도 처리
+   const m=decoded.match(/(?:domestic(?:%2f|\/)stock(?:%2f|\/)|item(?:%2f|\/))(\d{6})/i);
+   if(m)return{code:m[1]};
   }
-  // 코드 형식 파라미터를 종목명보다 우선 처리한다.
-  const codeValue=getFirst(['code','stockCode','itemCode','ticker','종목코드']);
+
+  const codeValue=get(['code','stockCode','itemCode','ticker','종목코드']);
   if(codeValue){
-   const decoded=decodeRepeated(codeValue);
-   const match=decoded.match(/(?:^|\D)(\d{6})(?:\D|$)/);
-   if(match)return{code:match[1]};
+   const m=codeValue.match(/\d{6}/);
+   if(m)return{code:m[0]};
   }
-  // 종목명/검색어 별칭은 모두 동일한 자동 검색 흐름으로 전달한다.
-  const nameValue=getFirst(['stock','name','종목명','종목','query','q']);
+  const nameValue=get(['stock','name','종목명','종목','query','q']);
   if(!nameValue)return null;
-  const candidate=decodeRepeated(nameValue);
-  if(/^\d{6}$/.test(candidate))return{code:candidate};
-  return candidate?{name:candidate}:null;
+  if(/^\d{6}$/.test(nameValue))return{code:nameValue};
+  return{name:nameValue};
  }catch{return null}
 }
 async function loadInitialStockFromUrl(){
- const target=initialStockFromUrl();if(!target)return;
+ const target=initialStockFromUrl();
+ if(!target)return;
+ $('clear').hidden=false;
  if(target.code){
-  const known=seed.find(x=>x.code===target.code);
-  $('query').value=known?.name||target.code;
-  $('clear').hidden=false;
-  load(target.code,known?.name||target.code);
+  $('query').value=seed.find(x=>x.code===target.code)?.name||target.code;
+  load(target.code,seed.find(x=>x.code===target.code)?.name||target.code);
   return;
  }
- $('query').value=target.name;$('clear').hidden=false;
+ $('query').value=target.name;
  try{
   const items=await search(target.name);
   const normalized=target.name.trim().toLocaleLowerCase();
