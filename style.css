@@ -256,15 +256,16 @@
 .dart-fundamental-chart-card{min-width:0;border:1px solid var(--line,#e5e9ef);border-radius:10px;padding:10px}
 .dart-fundamental-chart-card>b{display:block;font-size:12px}
 .dart-fundamental-chart-card>small{display:block;color:var(--muted,#8490a3);font-size:9px;margin-top:3px}
-.dart-line-chart{height:148px;margin-top:8px;position:relative;overflow:hidden}
-.dart-line-chart svg{width:100%;height:100%;display:block;overflow:visible}
+.dart-line-chart{height:auto;margin-top:8px;position:relative;overflow:visible}
+.dart-line-chart svg{width:100%;height:118px;display:block;overflow:visible}
 .dart-line-chart .gridline{stroke:var(--line,#e5e9ef);stroke-width:1;stroke-dasharray:3 3}
 .dart-line-chart .series-line{fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .dart-line-chart .series-point{stroke:var(--card,#fff);stroke-width:1.5}
 .dart-line-chart .axis-label{fill:var(--muted,#8490a3);font-size:8px}
-.dart-line-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:3px;font-size:9px;color:var(--muted,#8490a3)}
-.dart-line-legend span{display:inline-flex;align-items:center;gap:4px}
-.dart-line-legend i{width:13px;height:2px;display:inline-block;border-radius:2px}
+.dart-line-legend{display:flex;flex-wrap:wrap;gap:12px;margin:2px 0 5px;font-size:12px;color:var(--text,#182230)}
+.dart-line-legend span{display:inline-flex;align-items:center;gap:6px}
+.dart-line-legend i{width:22px;height:4px;display:inline-block;border-radius:3px;flex:none}
+.dart-line-legend b{font-size:12px;font-weight:800}
 .dart-fundamental-production{margin-top:13px;padding:11px;background:var(--soft,#f5f7fa);border-radius:9px}
 .dart-fundamental-production>b{font-size:12px}
 .dart-fundamental-production p,.dart-fundamental-empty{font-size:10px;color:var(--muted,#8490a3);line-height:1.55;margin:5px 0 0}
@@ -274,7 +275,7 @@
 .dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{text-align:left}
 .dart-fundamental-table th{color:var(--muted,#8490a3);background:var(--soft,#f7f8fa);font-weight:600}
 .dart-fundamental-table td.negative{color:#3979d8}
-@media(max-width:520px){.dart-fundamental-card{padding:13px}.dart-fundamental-head h3{font-size:15px}.dart-fundamental-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dart-fundamental-metric b{font-size:13px}.dart-fundamental-chart-grid{gap:7px}.dart-fundamental-chart-card{padding:8px}.dart-line-chart{height:125px}.dart-period-switch button{padding:7px 8px;font-size:10px}.dart-fundamental-table{font-size:9px}}
+@media(max-width:520px){.dart-fundamental-card{padding:13px}.dart-fundamental-head h3{font-size:15px}.dart-fundamental-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dart-fundamental-metric b{font-size:13px}.dart-fundamental-chart-grid{gap:7px}.dart-fundamental-chart-card{padding:8px}.dart-line-chart svg{height:105px}.dart-period-switch button{padding:7px 8px;font-size:10px}.dart-fundamental-table{font-size:9px}}
 
 /* 그래프 범례: 색상과 항목명이 모바일에서도 분명하게 보이도록 표시 */
 .dart-line-legend{gap:12px;margin-top:5px;font-size:10px;font-weight:600}
