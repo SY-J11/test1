@@ -75,10 +75,12 @@
 .dart-financial-chart-title{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:12px}
 .dart-financial-chart-title small{color:var(--muted,#8490a3);font-size:10px}
 .dart-financial-chart{min-height:150px;padding:12px 0 4px}
-.dart-bars{height:132px;display:flex;align-items:flex-end;justify-content:space-around;gap:5px;border-bottom:1px solid var(--line,#dce2eb)}
-.dart-bar-group{height:100%;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
-.dart-bar-set{height:calc(100% - 17px);width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px}
-.dart-bar-set i{display:block;width:23%;max-width:13px;min-height:2px;border-radius:3px 3px 0 0}
+.dart-bars{height:132px;display:flex;align-items:stretch;justify-content:space-around;gap:5px;border-bottom:1px solid var(--line,#dce2eb)}
+.dart-bar-group{height:100%;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px}
+.dart-bar-set{height:calc(100% - 17px);width:100%;position:relative;display:flex;align-items:stretch;justify-content:center;gap:2px}
+.dart-bar-set:before{content:"";position:absolute;z-index:1;left:0;right:0;top:var(--dart-zero,100%);border-top:1px dashed var(--muted,#8490a3);pointer-events:none}
+.dart-bar-set i{display:block;position:absolute;width:23%;max-width:13px;min-height:0;border-radius:3px 3px 0 0}
+.dart-bar-set i.negative{border-radius:0 0 3px 3px}
 .dart-bar-set .revenue,.dart-chart-legend .revenue{background:#648bd8}
 .dart-bar-set .operating,.dart-chart-legend .operating{background:#e16c72}
 .dart-bar-set .net,.dart-chart-legend .net{background:#39a58b}
