@@ -61,4 +61,13 @@
     <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
   </div>
 </div>
-<script src="app.js?v=142"></script></body></html>
+<script src="app.js?v=143"></script>
+<script>
+window.addEventListener('load', function () {
+  try {
+    if (typeof loadInitialStockFromUrl === 'function') loadInitialStockFromUrl();
+  } catch (error) {
+    console.error('URL 종목 자동 조회 오류:', error);
+  }
+});
+</script></body></html>
