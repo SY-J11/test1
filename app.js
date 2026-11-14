@@ -702,39 +702,74 @@ function normalize(item){const code=String(item.code||item.itemCode||item.stockC
 async function search(q){if(/^\d{6}$/.test(q))return[{name:seed.find(x=>x.code===q)?.name||q,code:q}];const d=await first([`${API}/front-api/search/autoComplete?query=${encodeURIComponent(q)}&target=stock,index,marketindicator,coin,ipo`]);const a=d?.result?.items||d?.items||d?.result||[];return(Array.isArray(a)?a:[]).map(normalize).filter(Boolean).slice(0,12)}
 function showResults(items,q,msg=''){const box=$('results');box.hidden=!q;if(msg){box.innerHTML=`<div class="result">${escapeHtml(msg)}</div>`;return}if(!items.length){box.innerHTML='<div class="result">검색 결과가 없습니다.</div>';return}box.innerHTML=items.map(x=>`<button class="result" data-code="${x.code}" data-name="${escapeHtml(x.name)}">${escapeHtml(x.name)}<small>${x.code}</small> ›</button>`).join('');box.querySelectorAll('[data-code]').forEach(b=>b.onclick=()=>load(b.dataset.code,b.dataset.name))}
 
-// 공유 URL에서 종목을 자동으로 찾아 기존 상세 화면으로 연결한다. 기존 검색/조회 흐름은 그대로 사용한다.
+// 공유 URL의 다양한 검색 파라미터를 해석해 기존 상세 화면으로 연결한다.
 function initialStockFromUrl(){
  try{
   const params=new URLSearchParams(location.search);
-  const firstValue=keys=>{for(const key of keys){const value=params.get(key);if(value&&value.trim())return value.trim()}return ''};
-  let raw=firstValue(['code','stockCode','itemCode','ticker','종목코드','url','naver','stockUrl','stock','name','query','q','종목명','종목']);
-  if(!raw)return null;
-  let candidate=raw;
-  // url/naver 파라미터에 네이버 모바일·PC 종목 주소를 넣은 경우 코드 추출
-  if(/https?:|stock\.naver\.com|m\.stock\.naver\.com/i.test(raw)){
-   try{const u=new URL(raw);const fromQuery=u.searchParams.get('code')||u.searchParams.get('itemCode');if(fromQuery&&/^\d{6}$/.test(fromQuery))return{code:fromQuery};const match=u.pathname.match(/(?:domestic\/stock\/|item\/)(\d{6})/);if(match)return{code:match[1]};}catch{}
-   const match=raw.match(/(?:code=|domestic%2Fstock%2F|domestic\/stock\/)(\d{6})/i);if(match)return{code:match[1]};
-   return null;
+  const getFirst=keys=>{
+   for(const key of keys){
+    const value=params.get(key);
+    if(value!==null&&String(value).trim())return String(value).trim();
+   }
+   return '';
+  };
+  const decodeRepeated=value=>{
+   let out=String(value??'').trim();
+   for(let i=0;i<3;i++){
+    try{const next=decodeURIComponent(out.replace(/\+/g,'%20'));if(next===out)break;out=next}catch{break}
+   }
+   return out.trim();
+  };
+  // 네이버 종목 URL은 한 번 또는 여러 번 인코딩된 경우 모두 코드로 변환한다.
+  const urlValue=getFirst(['url','naver','stockUrl','네이버주소','네이버주소']);
+  if(urlValue){
+   const decodedUrl=decodeRepeated(urlValue);
+   try{
+    const u=new URL(decodedUrl);
+    const fromQuery=u.searchParams.get('code')||u.searchParams.get('itemCode')||u.searchParams.get('stockCode');
+    if(fromQuery&&/^\d{6}$/.test(fromQuery.trim()))return{code:fromQuery.trim()};
+    const match=u.pathname.match(/(?:domestic\/stock\/|item\/)(\d{6})(?:\/|$)/i);
+    if(match)return{code:match[1]};
+   }catch{}
+   const match=decodedUrl.match(/(?:code=|domestic(?:%2f|\/)stock(?:%2f|\/)|item(?:%2f|\/))(\d{6})/i);
+   if(match)return{code:match[1]};
   }
-  try{candidate=decodeURIComponent(candidate.replace(/\+/g,'%20'))}catch{}
-  candidate=candidate.trim();
+  // 코드 형식 파라미터를 종목명보다 우선 처리한다.
+  const codeValue=getFirst(['code','stockCode','itemCode','ticker','종목코드']);
+  if(codeValue){
+   const decoded=decodeRepeated(codeValue);
+   const match=decoded.match(/(?:^|\D)(\d{6})(?:\D|$)/);
+   if(match)return{code:match[1]};
+  }
+  // 종목명/검색어 별칭은 모두 동일한 자동 검색 흐름으로 전달한다.
+  const nameValue=getFirst(['stock','name','종목명','종목','query','q']);
+  if(!nameValue)return null;
+  const candidate=decodeRepeated(nameValue);
   if(/^\d{6}$/.test(candidate))return{code:candidate};
   return candidate?{name:candidate}:null;
  }catch{return null}
 }
 async function loadInitialStockFromUrl(){
  const target=initialStockFromUrl();if(!target)return;
- if(target.code){const known=seed.find(x=>x.code===target.code);$('query').value=known?.name||target.code;load(target.code,known?.name||target.code);return}
+ if(target.code){
+  const known=seed.find(x=>x.code===target.code);
+  $('query').value=known?.name||target.code;
+  $('clear').hidden=false;
+  load(target.code,known?.name||target.code);
+  return;
+ }
  $('query').value=target.name;$('clear').hidden=false;
  try{
   const items=await search(target.name);
-  const exact=items.find(x=>String(x.name).trim().toLowerCase()===target.name.toLowerCase());
+  const normalized=target.name.trim().toLocaleLowerCase();
+  const exact=items.find(x=>String(x.name).trim().toLocaleLowerCase()===normalized);
   if(exact){load(exact.code,exact.name);return}
   if(items.length===1){load(items[0].code,items[0].name);return}
   showResults(items,target.name,items.length?'종목을 선택해 주세요.':'검색 결과가 없습니다.');
  }catch{
   const local=seed.filter(x=>x.name.toLowerCase()===target.name.toLowerCase()||x.name.toLowerCase().includes(target.name.toLowerCase()));
-  if(local.length===1)load(local[0].code,local[0].name);else showResults(local,target.name,local.length?'종목을 선택해 주세요.':'종목 검색에 실패했습니다. 종목명이나 코드를 확인해 주세요.');
+  if(local.length===1)load(local[0].code,local[0].name);
+  else showResults(local,target.name,local.length?'종목을 선택해 주세요.':'종목 검색에 실패했습니다. 종목명이나 코드를 확인해 주세요.');
  }
 }
 async function load(code,name=''){dailyChartPeriod='day';chartRangeSel={...chartRangeDefault};dailyRowsStore.delete(code);foreignStore.delete(code);renderRangeTabs('day');$('dailyChartTitle').textContent='120일봉 차트';dailyChartCache.clear();loadInvestorTrend(code);dailyChartForeignDone.clear();dailyChartForeignInFlight.clear();document.querySelectorAll('.daily-chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.period==='day');b.setAttribute('aria-selected',String(b.dataset.period==='day'))});const id=++seq,known=seed.find(x=>x.code===code);current={code,name:name||known?.name||code};dartConsensusQuarters=[];dartFinancialDataCache=null;dartNaverEarningsData=null;renderDartSurpriseAnalysis();loadDartFinancials();const dartLink=$('dartLink');if(dartLink){const dartName=name||known?.name||code;dartLink.href=`https://dart.fss.or.kr/html/search/SearchCompanyIR3_M.html?textCrpNM=${encodeURIComponent(dartName)}`;dartLink.dataset.dartName=dartName;}updateFavoriteButton();$('name').textContent=current.name;$('code').textContent=code;$('change').textContent='데이터 조회 중…';$('status').textContent='네이버 증권 데이터 조회 중…';$('query').value=current.name;$('results').hidden=true;$('chart').innerHTML='<div class="chart-empty">분기 재무 데이터 조회 중…</div>';try{const flowKrxPromise=Promise.race([fetchFlowHistory(code,'KRX'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const flowNxtPromise=Promise.race([fetchFlowHistory(code,'NXT'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const floatSharesPromise=Promise.race([loadFloatingSharesFromCompany(code).catch(()=>null),new Promise(resolve=>setTimeout(()=>resolve(null),2200))]);const pricePromise=loadDailyPrices120(code,raw=>{if(id!==seq)return;renderDailyChart(raw,'day')});pricePromise.then(raw=>{if(id!==seq)return;dailyChartCache.set(code+'-day',raw);renderDailyChart(raw,'day');loadChartPeriod('day')}).catch(()=>{});const results=await Promise.allSettled([
