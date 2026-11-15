@@ -319,3 +319,16 @@
 .dart-fundamental-table th,.dart-fundamental-table td{padding:8px 5px;overflow-wrap:anywhere}
 .dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{width:23%}
 @media(max-width:520px){.dart-fundamental-data-tables>h4{font-size:13px}.dart-fundamental-table{font-size:10px}.dart-fundamental-table th,.dart-fundamental-table td{padding:7px 3px}.dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{width:24%}.dart-fundamental-table-group h5{font-size:11px}}
+
+
+/* 투자자 동향 표시 방식: 선택된 탭만 짙은색으로 표시 */
+.inv-mode-tabs button[aria-pressed="true"]{
+  background:var(--text)!important;
+  color:var(--bg,#fff)!important;
+  border-color:var(--text)!important;
+}
+.inv-mode-tabs button[aria-pressed="false"]{
+  background:var(--surface,transparent);
+  color:var(--text);
+  border-color:var(--line);
+}
