@@ -59,19 +59,34 @@
     <button id="dartFundamentalLoad" type="button" class="dart-refresh">데이터 불러오기</button>
   </div>
   <div class="dart-fundamental-controls">
-    <div class="dart-period-switch" role="group" aria-label="조회 기간"><button type="button" data-fund-period="quarter" class="active">분기별 · 최근 8개</button><button type="button" data-fund-period="annual">연간별 · 최근 5년</button></div>
+    <div class="dart-period-switch" role="group" aria-label="조회 기간"><button type="button" data-fund-period="quarter" class="active">분기별 · 최근 6개</button><button type="button" data-fund-period="annual">연간별 · 최근 4년</button></div>
     <button id="dartFundamentalRefresh" type="button" class="dart-refresh secondary" hidden>↻ 새로고침</button>
   </div>
   <div id="dartFundamentalContent" hidden>
     <div id="dartFundamentalMetrics" class="dart-fundamental-metrics"></div>
-    <div class="dart-fundamental-chart-grid">
-      <article class="dart-fundamental-chart-card"><b>CAPEX · FCF</b><small>설비투자와 잉여현금흐름 · 억 원</small><div id="dartFundChartCash" class="dart-line-chart"></div></article>
-      <article class="dart-fundamental-chart-card"><b>영업현금흐름</b><small>영업활동 현금 창출 · 억 원</small><div id="dartFundChartOps" class="dart-line-chart"></div></article>
-      <article class="dart-fundamental-chart-card"><b>순차입금</b><small>차입금에서 현금성 자산을 차감 · 억 원</small><div id="dartFundChartDebt" class="dart-line-chart"></div></article>
-      <article class="dart-fundamental-chart-card"><b>부채비율</b><small>부채총계 ÷ 자본총계 · %</small><div id="dartFundChartRatio" class="dart-line-chart"></div></article>
-    </div>
-    <div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>CAPEX</th><th>FCF</th><th>영업현금흐름</th><th>순차입금</th><th>EBITDA</th><th>ROIC</th><th>이자보상배율</th><th>재고자산 회전율</th><th>매출채권 회전율</th><th>부채비율</th></tr></thead><tbody id="dartFundamentalRows"><tr><td colspan="11">조회 대기 중</td></tr></tbody></table></div>
-    <p class="dart-financial-note">연결재무제표 우선 · 금액 단위 억 원. FCF = 영업활동현금흐름 − CAPEX. ROIC·재고자산 회전율·매출채권 회전율은 평균 잔액 기준이며 분기 값은 연환산합니다. 공시되지 않거나 계산 근거가 부족한 값은 표시하지 않습니다.</p>
+    <div class="dart-fundamental-section"><h4>01 · 현금흐름 및 투자</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>영업현금흐름(OCF) + CAPEX</b><small>본업의 현금 창출력과 설비투자 · 억 원</small><div id="dartFundChartOpsCapex" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>CAPEX + FCF</b><small>설비투자와 투자 후 잔여 현금 · 억 원</small><div id="dartFundChartCapexFcf" class="dart-line-chart"></div></article>
+    </div></div>
+    <div class="dart-fundamental-section"><h4>02 · 수익성과 자본 효율</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>EBITDA 추이</b><small>수익 창출 규모 · EBITDA 마진은 요약 지표와 표에서 함께 확인</small><div id="dartFundChartEbitda" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>ROIC</b><small>투하자본 수익률 · WACC는 외부 시장 데이터 필요</small><div id="dartFundChartRoic" class="dart-line-chart"></div></article>
+    </div></div>
+    <div class="dart-fundamental-section"><h4>03 · 재무 건전성</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>순차입금 / EBITDA</b><small>차입금 상환 부담 · 배</small><div id="dartFundChartNetDebtEbitda" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>부채비율</b><small>부채총계 ÷ 자본총계 · %</small><div id="dartFundChartDebtRatio" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>이자보상배율</b><small>영업이익 ÷ 이자비용 · 배</small><div id="dartFundChartInterest" class="dart-line-chart"></div></article>
+    </div></div>
+    <div class="dart-fundamental-section"><h4>04 · 영업 효율성</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>재고자산 회전율</b><small>매출원가 ÷ 평균 재고자산 · 회</small><div id="dartFundChartInventory" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>매출채권 회전율</b><small>매출액 ÷ 평균 매출채권 · 회</small><div id="dartFundChartReceivables" class="dart-line-chart"></div></article>
+    </div></div>
+    <div class="dart-fundamental-section"><h4>05 · 추가 현금흐름 및 성장 분석</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>영업현금흐름 / 순이익</b><small>회계상 이익의 현금 전환 품질 · %</small><div id="dartFundChartCashEarnings" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>매출 성장률 + 영업이익 성장률</b><small>전년 동기 대비 성장률 · %</small><div id="dartFundChartGrowth" class="dart-line-chart"></div></article>
+    </div></div>
+    <div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>OCF</th><th>CAPEX</th><th>FCF</th><th>순차입금</th><th>EBITDA</th><th>EBITDA 마진</th><th>순차입금/EBITDA</th><th>ROIC</th><th>이자보상배율</th><th>재고 회전율</th><th>매출채권 회전율</th><th>부채비율</th><th>OCF/순이익</th><th>매출 성장률</th><th>영업이익 성장률</th></tr></thead><tbody id="dartFundamentalRows"><tr><td colspan="16">조회 대기 중</td></tr></tbody></table></div>
+    <p class="dart-financial-note">연결재무제표 우선 · 금액 단위 억 원. FCF = 영업활동현금흐름 − CAPEX. ROIC·재고자산 회전율·매출채권 회전율은 평균 잔액 기준입니다. 분기 회전율·ROIC는 연환산하며, 성장률은 전년 동기 대비입니다. WACC는 DART만으로 산출할 수 없어 별도 시장 데이터가 필요합니다. 공시되지 않거나 계산 근거가 부족한 값은 표시하지 않습니다.</p>
   </div>
 </section>
 <p class="disclaimer">공개 API 응답에 포함된 데이터만 표시합니다. 단위가 확인되지 않은 값은 계산에 사용하지 않습니다.</p><footer>STOCK INSIGHT PRO · 수치 확인용 참고 정보</footer>
@@ -83,7 +98,7 @@
     <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
   </div>
 </div>
-<script src="app.js?v=113146"></script>
+<script src="app.js?v=113147"></script>
 <script>
 window.addEventListener('load', function () {
   try {

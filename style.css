@@ -302,3 +302,9 @@
  .dart-fundamental-chart-card>small{font-size:11px}
  .dart-line-legend{font-size:12px;gap:14px}
 }
+
+/* V31: DART 펀더멘털 분석 영역별 그룹 */
+.dart-fundamental-section{margin-top:16px}
+.dart-fundamental-section>h4{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--text,#182230)}
+.dart-fundamental-section .dart-fundamental-chart-grid{margin-top:0}
+@media(max-width:520px){.dart-fundamental-section{margin-top:14px}.dart-fundamental-section>h4{font-size:12px}}
