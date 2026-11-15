@@ -308,3 +308,14 @@
 .dart-fundamental-section>h4{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--text,#182230)}
 .dart-fundamental-section .dart-fundamental-chart-grid{margin-top:0}
 @media(max-width:520px){.dart-fundamental-section{margin-top:14px}.dart-fundamental-section>h4{font-size:12px}}
+
+/* V33: 펀더멘털 표를 관련 항목별로 분리해 가로 스크롤 없이 표시 */
+.dart-fundamental-data-tables{margin-top:16px}
+.dart-fundamental-data-tables>h4{font-size:14px;margin:0 0 10px}
+.dart-fundamental-table-group{margin-top:12px}
+.dart-fundamental-table-group h5{font-size:11px;margin:0 0 5px;color:var(--muted,#8490a3)}
+.dart-fundamental-table-wrap{overflow-x:hidden;margin-top:0}
+.dart-fundamental-table{width:100%;table-layout:fixed;white-space:normal;font-size:11px}
+.dart-fundamental-table th,.dart-fundamental-table td{padding:8px 5px;overflow-wrap:anywhere}
+.dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{width:23%}
+@media(max-width:520px){.dart-fundamental-data-tables>h4{font-size:13px}.dart-fundamental-table{font-size:10px}.dart-fundamental-table th,.dart-fundamental-table td{padding:7px 3px}.dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{width:24%}.dart-fundamental-table-group h5{font-size:11px}}
