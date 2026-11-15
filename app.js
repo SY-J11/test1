@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1002,7 +1002,9 @@ async function loadInvestorTrend(code){
  }catch(e){if(token===invToken)host.innerHTML='<div class="chart-empty">투자자 동향 데이터를 불러오지 못했습니다.</div>'}
 }
 $('invTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;invRangeSel=Number(b.dataset.range);renderInvestorTabs();renderInvestorTrend()});
-$('invModeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-inv-mode]');if(!b)return;invMode=b.dataset.invMode;$('invModeTabs').querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x===b;x.classList.toggle('on',active);x.setAttribute('aria-pressed',String(active));});renderInvestorTrend()});
+$('invModeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-inv-mode]');if(!b)return;invMode=b.dataset.invMode;$('invModeTabs').querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x.dataset.invMode===invMode;x.classList.toggle('active',active);x.classList.remove('on','selected');x.setAttribute('aria-pressed',active?'true':'false');});renderInvestorTrend()});
+function syncInvestorModeTabs(){const box=$('invModeTabs');if(!box)return;box.querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x.dataset.invMode===invMode;x.classList.toggle('on',active);x.classList.remove('selected','active');x.setAttribute('aria-pressed',active?'true':'false');});}
+syncInvestorModeTabs();
 renderInvestorTabs();
 
 
@@ -1231,6 +1233,40 @@ function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
  svg+='</svg>';
  host.innerHTML=legend+svg;
 }
+
+function dartFundamentalRenderBars(id,rows,keys,labels,kind='money'){
+ const host=$(id);if(!host)return;
+ const data=(rows||[]).slice(-12),vals=data.flatMap(r=>keys.map(k=>r[k])).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
+ if(!data.length||!vals.length){host.innerHTML='<div class="dart-chart-empty">표시할 데이터가 없습니다.</div>';return;}
+ const max=Math.max(0,...vals),min=Math.min(0,...vals),span=(max-min)||1;
+ const zero=((max)/(span))*100;
+ const bars=data.map((r,i)=>{
+  const label=r.quarter?`${r.year} ${r.quarter}Q`:`${r.year}`;
+  const groups=keys.map((k,j)=>{
+   const v=r[k];if(v===null||v===undefined||!Number.isFinite(Number(v)))return '';
+   const h=Math.max(1,Math.abs(Number(v))/span*100);
+   const bottom=Number(v)>=0?zero:zero;
+   const style=Number(v)>=0?`bottom:${100-zero}%;height:${h}%`:`top:${zero}%;height:${h}%`;
+   return `<span class="dart-bar dart-bar-${j}" style="${style}" title="${labels[j]}: ${dartFundamentalFmt(v)}억"></span>`;
+  }).join('');
+  return `<div class="dart-bar-group"><div class="dart-bar-area">${groups}</div><small>${label}</small></div>`;
+ }).join('');
+ host.innerHTML=`<div class="dart-bar-legend">${labels.map((l,i)=>`<span><i class="dart-bar-key dart-bar-key-${i}"></i>${l}</span>`).join('')}</div><div class="dart-bar-chart" style="--dart-zero:${zero}%"><div class="dart-bar-zero"></div>${bars}</div>`;
+}
+function dartFundamentalRenderFCF(id,rows){
+ const host=$(id);if(!host)return;
+ const data=(rows||[]).slice(-12),vals=data.map(r=>r.fcf).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
+ if(!data.length||!vals.length){host.innerHTML='<div class="dart-chart-empty">표시할 데이터가 없습니다.</div>';return;}
+ const max=Math.max(0,...vals),min=Math.min(0,...vals),span=(max-min)||1,zero=max/span*100;
+ const bars=data.map(r=>{
+  const v=r.fcf,label=r.quarter?`${r.year} ${r.quarter}Q`:`${r.year}`;
+  if(v===null||v===undefined||!Number.isFinite(Number(v)))return `<div class="dart-fcf-group"><div class="dart-fcf-area"><span class="dart-fcf-missing">—</span></div><small>${label}</small></div>`;
+  const h=Math.max(1,Math.abs(Number(v))/span*100);
+  const style=Number(v)>=0?`bottom:${100-zero}%;height:${h}%`:`top:${zero}%;height:${h}%`;
+  return `<div class="dart-fcf-group"><div class="dart-fcf-area"><span class="dart-fcf-bar ${Number(v)<0?'negative':'positive'}" style="${style}" title="FCF: ${dartFundamentalFmt(v)}억"></span></div><small>${label}</small></div>`;
+ }).join('');
+ host.innerHTML=`<div class="dart-fcf-summary"><span>0 기준선</span><b>양수: 위쪽 · 음수: 아래쪽</b></div><div class="dart-fcf-chart" style="--dart-zero:${zero}%"><div class="dart-fcf-zero"><em>0</em></div>${bars}</div>`;
+}
 function renderDartFundamentals(data){
  dartFundamentalCache=data;
  const rows=(dartFundamentalPeriod==='annual'?data.annual:data.quarters)||[];
@@ -1252,8 +1288,9 @@ function renderDartFundamentals(data){
   ['재고자산',latest.inventory,'재무상태표 기준']
  ];
  const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined||!Number.isFinite(Number(v))?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
- dartFundamentalRenderLine('dartFundChartCash',rows,['capex','fcf'],['CAPEX','FCF']);
- dartFundamentalRenderLine('dartFundChartOps',rows,['ocf'],['영업현금흐름']);
+ dartFundamentalRenderFCF('dartFundChartCash',rows);
+ dartFundamentalRenderBars('dartFundChartOps',rows,['ocf','capex'],['영업현금흐름(OCF)','CAPEX'],'money');
+ dartFundamentalRenderFCF('dartFundChartFCF',rows);
  dartFundamentalRenderLine('dartFundChartDebt',rows,['netDebt'],['순차입금']);
  dartFundamentalRenderLine('dartFundChartRatio',rows,['debtRatio'],['부채비율'],'%');
  const body=$('dartFundamentalRows');

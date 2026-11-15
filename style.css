@@ -288,3 +288,28 @@
 
 /* Investor trend display mode tabs */
 .inv-mode-tabs{margin-top:8px;margin-bottom:8px}
+
+/* V28 investor mode single-selection and fundamental bar charts */
+.inv-mode-tabs button.on{position:relative;z-index:1}
+.inv-mode-tabs button:not(.on){opacity:.72}
+.dart-bar-legend,.dart-fcf-summary{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:6px 0 10px;font-size:11px;color:var(--muted,#777)}
+.dart-bar-legend span{display:inline-flex;align-items:center;gap:5px}
+.dart-bar-key{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--accent,#4b8)}
+.dart-bar-key-1{background:var(--warning,#d89b45)}
+.dart-bar-chart,.dart-fcf-chart{position:relative;display:flex;align-items:stretch;gap:5px;height:170px;padding:0 4px 20px;border-bottom:1px solid var(--line,#ccc);overflow:hidden}
+.dart-bar-chart:before,.dart-fcf-chart:before{content:"";position:absolute;left:0;right:0;top:var(--dart-zero);border-top:1px dashed var(--muted,#888);opacity:.75;z-index:2}
+.dart-bar-group,.dart-fcf-group{position:relative;z-index:1;display:flex;flex:1;min-width:0;flex-direction:column;justify-content:flex-end;text-align:center}
+.dart-bar-area,.dart-fcf-area{position:relative;flex:1;min-height:0}
+.dart-bar{position:absolute;width:38%;min-height:1px;border-radius:2px 2px 0 0;background:var(--accent,#4b8)}
+.dart-bar-0{left:10%}
+.dart-bar-1{left:52%;background:var(--warning,#d89b45)}
+.dart-bar-group small,.dart-fcf-group small{font-size:9px;color:var(--muted,#777);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dart-bar-zero,.dart-fcf-zero{display:none}
+.dart-fcf-bar{position:absolute;left:25%;width:50%;min-height:1px;border-radius:2px 2px 0 0;background:var(--positive,#299b70)}
+.dart-fcf-bar.negative{border-radius:0 0 2px 2px;background:var(--negative,#d65b5b)}
+.dart-fcf-zero{display:block;position:absolute;left:0;right:0;top:var(--dart-zero);border-top:1px solid var(--text,#777);z-index:3}
+.dart-fcf-zero em{position:absolute;left:0;top:-13px;font-size:9px;font-style:normal;color:var(--muted,#777);background:var(--surface,#fff);padding-right:3px}
+.dart-fcf-summary{justify-content:space-between}
+.dart-fcf-summary b{font-weight:500}
+.dart-fcf-missing{position:absolute;left:0;right:0;top:50%;font-size:10px;color:var(--muted,#888)}
+.dart-chart-empty{padding:28px 8px;text-align:center;color:var(--muted,#888);font-size:12px}
