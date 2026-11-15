@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -993,6 +993,7 @@ function renderInvestorTrend(){
 }
 async function loadInvestorTrend(code){
  const token=++invToken,host=$('invChart');if(!host)return;
+ invMode='daily';syncInvestorModeTabs();
  invRows=[];host.innerHTML='<div class="chart-empty">투자자 동향을 불러오는 중…</div>';$('invTable').innerHTML='';$('invSum').innerHTML='';$('invRange').textContent='';
  try{
   const [kr,nx]=await Promise.all([fetchInvestorMap(code,'KRX',250),fetchInvestorMap(code,'NXT',250).catch(()=>new Map())]);
@@ -1002,8 +1003,8 @@ async function loadInvestorTrend(code){
  }catch(e){if(token===invToken)host.innerHTML='<div class="chart-empty">투자자 동향 데이터를 불러오지 못했습니다.</div>'}
 }
 $('invTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;invRangeSel=Number(b.dataset.range);renderInvestorTabs();renderInvestorTrend()});
-$('invModeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-inv-mode]');if(!b)return;invMode=b.dataset.invMode;$('invModeTabs').querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x.dataset.invMode===invMode;x.classList.toggle('active',active);x.classList.remove('on','selected');x.setAttribute('aria-pressed',active?'true':'false');});renderInvestorTrend()});
-function syncInvestorModeTabs(){const box=$('invModeTabs');if(!box)return;box.querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x.dataset.invMode===invMode;x.classList.toggle('on',active);x.classList.remove('selected','active');x.setAttribute('aria-pressed',active?'true':'false');});}
+$('invModeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-inv-mode]');if(!b)return;e.preventDefault();e.stopPropagation();invMode=b.dataset.invMode;syncInvestorModeTabs();renderInvestorTrend()},true);
+function syncInvestorModeTabs(){const box=$('invModeTabs');if(!box)return;box.querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x.dataset.invMode===invMode;x.classList.toggle('active',active);x.classList.toggle('on',active);x.classList.remove('selected');x.setAttribute('aria-pressed',active?'true':'false');});}
 syncInvestorModeTabs();
 renderInvestorTabs();
 
@@ -1236,22 +1237,36 @@ function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
 
 function dartFundamentalRenderBars(id,rows,keys,labels,kind='money'){
  const host=$(id);if(!host)return;
- const data=(rows||[]).slice(-12),vals=data.flatMap(r=>keys.map(k=>r[k])).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)));
- if(!data.length||!vals.length){host.innerHTML='<div class="dart-chart-empty">표시할 데이터가 없습니다.</div>';return;}
- const max=Math.max(0,...vals),min=Math.min(0,...vals),span=(max-min)||1;
- const zero=((max)/(span))*100;
- const bars=data.map((r,i)=>{
-  const label=r.quarter?`${r.year} ${r.quarter}Q`:`${r.year}`;
-  const groups=keys.map((k,j)=>{
-   const v=r[k];if(v===null||v===undefined||!Number.isFinite(Number(v)))return '';
-   const h=Math.max(1,Math.abs(Number(v))/span*100);
-   const bottom=Number(v)>=0?zero:zero;
-   const style=Number(v)>=0?`bottom:${100-zero}%;height:${h}%`:`top:${zero}%;height:${h}%`;
-   return `<span class="dart-bar dart-bar-${j}" style="${style}" title="${labels[j]}: ${dartFundamentalFmt(v)}억"></span>`;
-  }).join('');
-  return `<div class="dart-bar-group"><div class="dart-bar-area">${groups}</div><small>${label}</small></div>`;
- }).join('');
- host.innerHTML=`<div class="dart-bar-legend">${labels.map((l,i)=>`<span><i class="dart-bar-key dart-bar-key-${i}"></i>${l}</span>`).join('')}</div><div class="dart-bar-chart" style="--dart-zero:${zero}%"><div class="dart-bar-zero"></div>${bars}</div>`;
+ const data=(rows||[]).slice(-12);
+ const valid=data.filter(r=>keys.some(k=>r[k]!==null&&r[k]!==undefined&&Number.isFinite(Number(r[k]))));
+ if(!valid.length){host.innerHTML='<div class="dart-chart-empty">표시할 데이터가 없습니다.</div>';return;}
+ const W=Math.max(300,Math.round(host.clientWidth||320)),H=176,L=34,R=7,T=10,B=30;
+ const vals=valid.flatMap(r=>keys.map(k=>r[k]).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number));
+ let min=Math.min(0,...vals),max=Math.max(0,...vals);
+ if(max===min){max+=1;min-=1;}
+ const pad=(max-min)*.08;min-=pad;max+=pad;
+ const plotW=W-L-R,plotH=H-T-B,y=v=>T+(max-Number(v))/(max-min)*plotH,zeroY=y(0);
+ const colors=['#3979d8','#d58b28'];
+ const groupW=plotW/valid.length,barW=Math.max(2,Math.min(13,groupW/(keys.length+1)));
+ let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${labels.join(', ')} 막대 그래프">`;
+ for(let g=0;g<=3;g++){const value=max-(max-min)*g/3,yy=y(value);svg+=`<line class="gridline" x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}"/><text class="axis-label" x="${L-4}" y="${yy+3}" text-anchor="end">${dartFundamentalFmt(value)}</text>`;}
+ svg+=`<line x1="${L}" y1="${zeroY}" x2="${W-R}" y2="${zeroY}" stroke="var(--text)" stroke-width="1" opacity=".65"/>`;
+ valid.forEach((r,i)=>{
+  const cx=L+(i+.5)*groupW;
+  keys.forEach((key,j)=>{
+   const raw=r[key];if(raw===null||raw===undefined||!Number.isFinite(Number(raw)))return;
+   const v=Number(raw),yy=y(v),top=Math.min(yy,zeroY),height=Math.max(1,Math.abs(zeroY-yy));
+   const x=cx+(j-(keys.length-1)/2)*(barW+2)-barW/2;
+   svg+=`<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW}" height="${height.toFixed(1)}" rx="1.5" fill="${colors[j%colors.length]}" opacity=".9"><title>${labels[j]}: ${dartFundamentalFmt(v)}억</title></rect>`;
+  });
+  if(valid.length<=8||i===0||i===valid.length-1||i%Math.ceil(valid.length/6)===0){
+   const label=r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year);
+   svg+=`<text class="axis-label" x="${cx}" y="${H-7}" text-anchor="middle">${label}</text>`;
+  }
+ });
+ svg+='</svg>';
+ const legend=`<div class="dart-line-legend">${labels.map((l,i)=>`<span><i style="background:${colors[i%colors.length]}"></i><b>${l}</b></span>`).join('')}</div>`;
+ host.innerHTML=legend+svg;
 }
 function dartFundamentalRenderFCF(id,rows){
  const host=$(id);if(!host)return;
@@ -1290,7 +1305,7 @@ function renderDartFundamentals(data){
  const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined||!Number.isFinite(Number(v))?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
  dartFundamentalRenderFCF('dartFundChartCash',rows);
  dartFundamentalRenderBars('dartFundChartOps',rows,['ocf','capex'],['영업현금흐름(OCF)','CAPEX'],'money');
- dartFundamentalRenderFCF('dartFundChartFCF',rows);
+ dartFundamentalRenderLine('dartFundChartFCF',rows,['fcf'],['FCF']);
  dartFundamentalRenderLine('dartFundChartDebt',rows,['netDebt'],['순차입금']);
  dartFundamentalRenderLine('dartFundChartRatio',rows,['debtRatio'],['부채비율'],'%');
  const body=$('dartFundamentalRows');
