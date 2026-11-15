@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1292,8 +1292,8 @@ function renderDartFundamentals(data){
   ['영업현금흐름',latest.ocf,'OCF'],
   ['순차입금',latest.netDebt,'차입금 − 현금'],
   ['ROIC',latest.roic,`${periodLabel} · 세후영업이익 ÷ 평균 투하자본`,'%'],
-  ['EBITDA',latest.ebitda,`${periodLabel} · 영업이익 + 감가상각비 및 상각비`],
-  ['EBITDA 마진',latest.ebitdaMargin,'EBITDA ÷ 매출액','%'],
+  ['EBITDA',latest.ebitda,`${periodLabel} · 네이버증권 EBITDA(당기) 원본`],
+  ['EBITDA 마진',latest.ebitdaMargin,'네이버증권 EBITDA마진율','%'],
   ['순차입금 / EBITDA',latest.netDebtEbitda,'차입금 상환 부담','배'],
   ['영업현금흐름 / 순이익',latest.ocfToNetIncome,'현금이익 전환 비율','%'],
   ['이자보상배율',latest.interestCoverage,`${periodLabel} · 영업이익 ÷ 이자비용`,'배'],
@@ -1332,13 +1332,13 @@ function renderDartFundamentals(data){
  renderRows('dartFundamentalRowsDebt',[{key:'netDebt',kind:'money'},{key:'netDebtEbitda',suffix:'배'},{key:'debtRatio'},{key:'interestCoverage',suffix:'배'}],5);
  renderRows('dartFundamentalRowsActivity',[{key:'inventoryTurnover',suffix:'회'},{key:'receivablesTurnover',suffix:'회'}],3);
  renderRows('dartFundamentalRowsGrowth',[{key:'ocfToNetIncome'},{key:'revenueGrowth'},{key:'operatingIncomeGrowth'}],4);
- const status=$('dartFundamentalStatus');if(status){status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · 6시간 캐시`; }
+ const status=$('dartFundamentalStatus');if(status){const es=data.ebitdaSource;status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · EBITDA: ${es?.ok?'네이버 원본 적용':`조회 실패 (${es?.message||'원본 없음'})`} · 6시간 캐시`; }
 }
 async function loadDartFundamentals(force=false){
  const code=current?.code;if(!/^\d{6}$/.test(code||''))return;
  const status=$('dartFundamentalStatus'),button=$('dartFundamentalLoad');
  if(button){button.disabled=true;button.textContent='조회 중…';}
- if(status)status.textContent='DART 재무정보를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
+ if(status)status.textContent='DART 재무정보와 네이버증권 EBITDA 원본 데이터를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
  try{
   const url=`${DART_PROXY}/?dart=fundamentals&stock_code=${encodeURIComponent(code)}${force?'&refresh=1':''}`;
   const res=await fetch(url,{cache:'no-store'});const data=await res.json();
