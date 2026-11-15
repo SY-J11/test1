@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1220,6 +1220,7 @@ let dartFundamentalCache=null;
 let dartFundamentalPeriod='quarter';
 let dartFundamentalLoadedCode='';
 const dartFundamentalFmt=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':(Number(v)/1e8).toLocaleString('ko-KR',{maximumFractionDigits:1});
+const dartFundamentalFmtEok=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1});
 function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
  const host=$(hostId);if(!host)return;
  const valid=rows.filter(r=>keys.some(k=>r[k]!==null&&r[k]!==undefined&&Number.isFinite(Number(r[k]))));
@@ -1292,7 +1293,7 @@ function renderDartFundamentals(data){
   ['영업현금흐름',latest.ocf,'OCF'],
   ['순차입금',latest.netDebt,'차입금 − 현금'],
   ['ROIC',latest.roic,`${periodLabel} · 세후영업이익 ÷ 평균 투하자본`,'%'],
-  ['EBITDA',latest.ebitda,`${periodLabel} · 네이버증권 EBITDA(당기) 원본`],
+  ['EBITDA',latest.ebitda,`${periodLabel} · 네이버증권 EBITDA(당기) 원본`,'EBITDA_EOK'],
   ['EBITDA 마진',latest.ebitdaMargin,'네이버증권 EBITDA마진율','%'],
   ['순차입금 / EBITDA',latest.netDebtEbitda,'차입금 상환 부담','배'],
   ['영업현금흐름 / 순이익',latest.ocfToNetIncome,'현금이익 전환 비율','%'],
@@ -1303,7 +1304,7 @@ function renderDartFundamentals(data){
   ['현금성 자산',latest.cash,'현금 및 현금성 자산'],
   ['재고자산',latest.inventory,'재무상태표 기준']
  ];
- const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined||!Number.isFinite(Number(v))?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
+ const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined||!Number.isFinite(Number(v))?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:suffix==='EBITDA_EOK'?`${dartFundamentalFmtEok(v)}억`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
  dartFundamentalRenderBars('dartFundChartOpsCapex',rows,['ocf','capex'],['영업현금흐름(OCF)','CAPEX']);
  dartFundamentalRenderLine('dartFundChartCapexFcf',rows,['capex','fcf'],['CAPEX','FCF']);
  dartFundamentalRenderLine('dartFundChartEbitda',rows,['ebitda'],['EBITDA(억원)']);
@@ -1315,20 +1316,20 @@ function renderDartFundamentals(data){
  dartFundamentalRenderLine('dartFundChartReceivables',rows,['receivablesTurnover'],['매출채권 회전율(회)']);
  dartFundamentalRenderLine('dartFundChartCashEarnings',rows,['ocfToNetIncome'],['OCF/순이익(%)']);
  dartFundamentalRenderLine('dartFundChartGrowth',rows,['revenueGrowth','operatingIncomeGrowth'],['매출 성장률(%)','영업이익 성장률(%)']);
- const money=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${dartFundamentalFmt(v)}억`;
+ const money=(v,kind)=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${kind==='money-eok'?dartFundamentalFmtEok(v):dartFundamentalFmt(v)}억`;
  const ratio=(v,suffix='%')=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`;
  const period=r=>r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;
  const renderRows=(id,cols,emptyColspan)=>{
   const host=$(id);if(!host)return;
   host.innerHTML=rows.slice().reverse().map(r=>`<tr><td>${period(r)}</td>${cols.map(c=>{
    const v=r[c.key];
-   const value=c.kind==='money'?money(v):ratio(v,c.suffix||'%');
+   const value=(c.kind==='money'||c.kind==='money-eok')?money(v,c.kind):ratio(v,c.suffix||'%');
    const negative=Number.isFinite(Number(v))&&Number(v)<0?'negative':'';
    return `<td class="${negative}">${value}</td>`;
   }).join('')}</tr>`).join('')||`<tr><td colspan="${emptyColspan}">해당 기간 공시 자료 없음</td></tr>`;
  };
  renderRows('dartFundamentalRowsCash',[{key:'ocf',kind:'money'},{key:'capex',kind:'money'},{key:'fcf',kind:'money'}],4);
- renderRows('dartFundamentalRowsProfit',[{key:'ebitda',kind:'money'},{key:'ebitdaMargin'},{key:'roic'}],4);
+ renderRows('dartFundamentalRowsProfit',[{key:'ebitda',kind:'money-eok'},{key:'ebitdaMargin'},{key:'roic'}],4);
  renderRows('dartFundamentalRowsDebt',[{key:'netDebt',kind:'money'},{key:'netDebtEbitda',suffix:'배'},{key:'debtRatio'},{key:'interestCoverage',suffix:'배'}],5);
  renderRows('dartFundamentalRowsActivity',[{key:'inventoryTurnover',suffix:'회'},{key:'receivablesTurnover',suffix:'회'}],3);
  renderRows('dartFundamentalRowsGrowth',[{key:'ocfToNetIncome'},{key:'revenueGrowth'},{key:'operatingIncomeGrowth'}],4);
