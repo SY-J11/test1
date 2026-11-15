@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -921,7 +921,7 @@ $('dailyRangeTabs')?.addEventListener('click',e=>{const b=e.target.closest('butt
 
 // ===== 투자자 동향 그래프 (외국인 · 기관 · 개인 일별 순매수) =====
 const invRanges=[5,10,20,40,60,100,120,200,240];
-let invRangeSel=60,invRows=[],invToken=0;
+let invRangeSel=60,invRows=[],invToken=0,invMode='daily';
 function invNet(o,type){
  if(!o||typeof o!=='object')return null;
  const A={foreign:{net:['foreignNetVolume','foreignerNetVolume','foreignPureBuyQuant','foreignerPureBuyQuant'],buy:['foreignBuyVolume','foreignerBuyVolume'],sell:['foreignSellVolume','foreignerSellVolume']},
@@ -955,9 +955,20 @@ const invColor=v=>v>0?'#df5967':v<0?'#3979d8':'inherit';
 function renderInvestorTabs(){const box=$('invTabs');if(!box)return;box.innerHTML=invRanges.map(n=>`<button type="button" data-range="${n}" class="${n===invRangeSel?'on':''}">${n}일</button>`).join('')}
 function renderInvestorTrend(){
  const host=$('invChart');if(!host)return;
- const all=invRows;$('invTitle').textContent=`투자자 동향 · ${invRangeSel}일`;
+ const all=invRows;$('invTitle').textContent=`투자자 동향 · ${invRangeSel}일 · ${invMode==='cumulative'?'누적':'일별'}`;
  if(!all.length){host.innerHTML='<div class="chart-empty">투자자 동향 데이터가 없습니다.</div>';$('invTable').innerHTML='';$('invSum').innerHTML='';$('invRange').textContent='';return}
- const data=all.slice(-invRangeSel),n=data.length;
+ const source=all.slice(-invRangeSel),n=source.length;
+ const data=invMode==='cumulative'?(()=>{
+  const totals={f:0,i:0,p:0},known={f:false,i:false,p:false};
+  return source.map(r=>{
+   const out={date:r.date};
+   for(const k of ['f','i','p']){
+    if(r[k]!==null&&r[k]!==undefined){totals[k]+=r[k];known[k]=true;}
+    out[k]=known[k]?totals[k]:null;
+   }
+   return out;
+  });
+ })():source;
  const fmtD=d=>`${d.slice(0,4)}.${d.slice(4,6)}.${d.slice(6,8)}`;
  $('invRange').textContent=`${fmtD(data[0].date)} – ${fmtD(data[n-1].date)} · ${n}일`;
  const W=Math.max(300,Math.round(host.clientWidth||340)),H=200,left=44,right=6,top=8,bottom=22,plotW=W-left-right,plotH=H-top-bottom;
@@ -975,9 +986,10 @@ function renderInvestorTrend(){
  const pick=e=>{const r=svg.getBoundingClientRect();if(!r.width)return;const vx=(e.clientX-r.left)/r.width*W;const k=Math.max(0,Math.min(n-1,Math.floor((vx-left)/step)));cur.setAttribute('x',(left+k*step).toFixed(2));cur.style.display='';box.innerHTML=detailHtml(k)};
  svg.addEventListener('pointerdown',pick);svg.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'||e.buttons)pick(e)});
  svg.addEventListener('mouseleave',()=>{cur.style.display='none';box.innerHTML=detailHtml(n-1)});
- const sum=key=>data.reduce((a,d)=>a+(d[key]||0),0);
- $('invSum').innerHTML=`<span class="inv-sum-label">${n}일 합계</span>`+series.map(([key,name,col])=>`<span><i style="background:${col}"></i>${name} <em style="color:${invColor(sum(key))}">${fmtSigned(sum(key))}</em></span>`).join('');
- $('invTable').innerHTML=`<table><thead><tr><th>날짜</th><th>외국인</th><th>기관</th><th>개인</th></tr></thead><tbody>${[...data].reverse().map(d=>`<tr><td>${fmtD(d.date)}</td>${['f','i','p'].map(k=>`<td style="color:${invColor(d[k])}">${fmtSigned(d[k])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+ const sum=key=>invMode==='cumulative'?(data[n-1]?.[key]??null):data.reduce((a,d)=>a+(d[key]||0),0);
+ $('invSum').innerHTML=`<span class="inv-sum-label">${invMode==='cumulative'?'시작일 기준 누적':'기간 합계'} · ${n}일</span>`+series.map(([key,name,col])=>`<span><i style="background:${col}"></i>${name} <em style="color:${invColor(sum(key))}">${fmtSigned(sum(key))}</em></span>`).join('');
+ const headers=invMode==='cumulative'?['날짜','누적 외국인','누적 기관','누적 개인']:['날짜','외국인','기관','개인'];
+ $('invTable').innerHTML=`<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${[...data].reverse().map(d=>`<tr><td>${fmtD(d.date)}</td>${['f','i','p'].map(k=>`<td style="color:${invColor(d[k])}">${fmtSigned(d[k])}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 async function loadInvestorTrend(code){
  const token=++invToken,host=$('invChart');if(!host)return;
@@ -990,6 +1002,7 @@ async function loadInvestorTrend(code){
  }catch(e){if(token===invToken)host.innerHTML='<div class="chart-empty">투자자 동향 데이터를 불러오지 못했습니다.</div>'}
 }
 $('invTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;invRangeSel=Number(b.dataset.range);renderInvestorTabs();renderInvestorTrend()});
+$('invModeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-inv-mode]');if(!b)return;invMode=b.dataset.invMode;$('invModeTabs').querySelectorAll('button[data-inv-mode]').forEach(x=>{const active=x===b;x.classList.toggle('on',active);x.setAttribute('aria-pressed',String(active));});renderInvestorTrend()});
 renderInvestorTabs();
 
 
@@ -1223,29 +1236,40 @@ function renderDartFundamentals(data){
  const rows=(dartFundamentalPeriod==='annual'?data.annual:data.quarters)||[];
  const latest=rows[rows.length-1]||{};
  const content=$('dartFundamentalContent');if(content)content.hidden=false;
- const utilizationRows=Array.isArray(data.production?.utilization)?data.production.utilization:[];
- const latestUtilization=utilizationRows.length?utilizationRows[utilizationRows.length-1]:null;
- const utilizationValue=latestUtilization?.rate??latestUtilization?.utilization??null;
- const annualLatest=(data.annual||[]).slice(-1)[0]||{};
- const metricItems=[['CAPEX',latest.capex,'설비투자액'],['FCF',latest.fcf,'잉여현금흐름'],['영업현금흐름',latest.ocf,'OCF'],['순차입금',latest.netDebt,'차입금 − 현금'],['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],['생산시설 가동률',utilizationValue,latestUtilization?.period||'사업보고서 공시 기준','%'],['현금성 자산',latest.cash,'현금 및 현금성 자산'],['재고자산',latest.inventory,'재무상태표 기준'],['ROIC',annualLatest.roic,`${annualLatest.year||'최근 연도'}년 · 세후영업이익 ÷ 평균 투하자본`,'%'],['재고자산 회전율',annualLatest.inventoryTurnover,`${annualLatest.year||'최근 연도'}년 · 매출원가 ÷ 평균 재고자산`,'회'],['이자보상배율',annualLatest.interestCoverage,`${annualLatest.year||'최근 연도'}년 · 영업이익 ÷ 이자비용`,'배'],['EBITDA',annualLatest.ebitda,`${annualLatest.year||'최근 연도'}년 · 영업이익 + 감가상각비`],['매출채권 회전율',annualLatest.receivablesTurnover,`${annualLatest.year||'최근 연도'}년 · 매출액 ÷ 평균 매출채권`,'회']];
+ const periodLabel=latest.quarter?`${latest.year}년 ${latest.quarter}Q`:`${latest.year||'최근'}년`;
+ const metricItems=[
+  ['CAPEX',latest.capex,'설비투자액'],
+  ['FCF',latest.fcf,'잉여현금흐름'],
+  ['영업현금흐름',latest.ocf,'OCF'],
+  ['순차입금',latest.netDebt,'차입금 − 현금'],
+  ['ROIC',latest.roic,`${periodLabel} · 세후영업이익 ÷ 평균 투하자본`,'%'],
+  ['EBITDA',latest.ebitda,`${periodLabel} · 영업이익 + 감가상각비 및 상각비`],
+  ['이자보상배율',latest.interestCoverage,`${periodLabel} · 영업이익 ÷ 이자비용`,'배'],
+  ['재고자산 회전율',latest.inventoryTurnover,`${periodLabel} · 매출원가 ÷ 평균 재고자산`,'회'],
+  ['매출채권 회전율',latest.receivablesTurnover,`${periodLabel} · 매출액 ÷ 평균 매출채권`,'회'],
+  ['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],
+  ['현금성 자산',latest.cash,'현금 및 현금성 자산'],
+  ['재고자산',latest.inventory,'재무상태표 기준']
+ ];
  const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix])=>`<div class="dart-fundamental-metric"><small>${name}</small><b>${v===null||v===undefined||!Number.isFinite(Number(v))?'—':suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:`${dartFundamentalFmt(v)}억`}</b><em>${sub}</em></div>`).join('');
  dartFundamentalRenderLine('dartFundChartCash',rows,['capex','fcf'],['CAPEX','FCF']);
  dartFundamentalRenderLine('dartFundChartOps',rows,['ocf'],['영업현금흐름']);
  dartFundamentalRenderLine('dartFundChartDebt',rows,['netDebt'],['순차입금']);
  dartFundamentalRenderLine('dartFundChartRatio',rows,['debtRatio'],['부채비율'],'%');
- const utilizationByPeriod=new Map(utilizationRows.map(x=>[String(x.period||x.year||''),x.rate??x.utilization??null]));
- const body=$('dartFundamentalRows');if(body)body.innerHTML=rows.slice().reverse().map(r=>{const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;const cell=(v,pct=false)=>v===null||v===undefined?'—':pct?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:`${dartFundamentalFmt(v)}억`;const util=utilizationByPeriod.get(String(r.year))??null;return `<tr><td>${label}</td><td>${cell(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${cell(r.fcf)}</td><td>${cell(r.ocf)}</td><td>${cell(util,true)}</td><td class="${r.netDebt<0?'negative':''}">${cell(r.netDebt)}</td><td>${cell(r.debtRatio,true)}</td></tr>`}).join('')||'<tr><td colspan="7">해당 기간 공시 자료 없음</td></tr>';
- const utilizationHost=$('dartFundamentalUtilization');if(utilizationHost){utilizationHost.innerHTML=utilizationRows.length?utilizationRows.slice().reverse().map(x=>`<div class="dart-utilization-row"><b>${x.period||x.year||'공시 기간'} · ${x.label||'생산시설'}</b><span>${x.rate===null||x.rate===undefined?'가동률 수치 미확인':`${Number(x.rate??x.utilization).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`}${x.detail?`<small>${String(x.detail).replace(/[<>]/g,' ').slice(0,500)}</small>`:''}</span></div>`).join(''):'생산시설 가동률 공시 자료를 확인할 수 없습니다. 사업보고서에 해당 수치가 공시되지 않았거나 자동으로 판독할 수 없는 경우 ‘—’로 표시합니다.';}
- const rdRows=Array.isArray(data.production?.rd)?data.production.rd:[];
- const rdHost=$('dartFundamentalRD');if(rdHost){rdHost.innerHTML=rdRows.length?rdRows.slice(0,20).map(x=>`<div class="dart-utilization-row"><b>${x.period||'사업보고서'} · ${x.label||'R&D'}</b><span>${String(x.detail||'').replace(/[<>]/g,' ').slice(0,700)}</span></div>`).join(''):'사업보고서 원문에서 연구개발 관련 표를 확인하지 못했습니다. 기업별 공시 형식에 따라 자동 판독이 제한될 수 있습니다.';}
- const note=$('dartFundamentalProductionNote');if(note)note.textContent=data.production?.note||'기업별 사업보고서 공시 여부에 따라 표시합니다.';
- const status=$('dartFundamentalStatus');if(status){status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · 원문 R&D·가동률 추출 · 6시간 캐시`; }
+ const body=$('dartFundamentalRows');
+ const money=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${dartFundamentalFmt(v)}억`;
+ const ratio=(v,suffix='%')=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`;
+ if(body)body.innerHTML=rows.slice().reverse().map(r=>{
+  const label=r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;
+  return `<tr><td>${label}</td><td>${money(r.capex)}</td><td class="${r.fcf<0?'negative':''}">${money(r.fcf)}</td><td>${money(r.ocf)}</td><td class="${r.netDebt<0?'negative':''}">${money(r.netDebt)}</td><td>${money(r.ebitda)}</td><td>${ratio(r.roic)}</td><td>${ratio(r.interestCoverage,'배')}</td><td>${ratio(r.inventoryTurnover,'회')}</td><td>${ratio(r.receivablesTurnover,'회')}</td><td>${ratio(r.debtRatio)}</td></tr>`;
+ }).join('')||'<tr><td colspan="11">해당 기간 공시 자료 없음</td></tr>';
+ const status=$('dartFundamentalStatus');if(status){status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · 6시간 캐시`; }
 }
 async function loadDartFundamentals(force=false){
  const code=current?.code;if(!/^\d{6}$/.test(code||''))return;
  const status=$('dartFundamentalStatus'),button=$('dartFundamentalLoad');
  if(button){button.disabled=true;button.textContent='조회 중…';}
- if(status)status.textContent='DART 재무정보와 생산시설 가동률 공시 데이터를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
+ if(status)status.textContent='DART 재무정보를 조회합니다. 최초 조회에는 시간이 걸릴 수 있습니다.';
  try{
   const url=`${DART_PROXY}/?dart=fundamentals&stock_code=${encodeURIComponent(code)}${force?'&refresh=1':''}`;
   const res=await fetch(url,{cache:'no-store'});const data=await res.json();

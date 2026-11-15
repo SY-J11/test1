@@ -285,3 +285,6 @@
 .dart-utilization-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line,#e6eaf1)}
 .dart-utilization-row:last-child{border-bottom:0}
 .dart-utilization-row strong{font-size:15px}
+
+/* Investor trend display mode tabs */
+.inv-mode-tabs{margin-top:8px;margin-bottom:8px}
