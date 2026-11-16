@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1239,7 +1239,7 @@ function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
   svg+=`<polyline class="series-line" stroke="${colors[ki%colors.length]}" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
   pts.forEach(p=>svg+=`<circle class="series-point" cx="${p[0]}" cy="${p[1]}" r="2.7" fill="${colors[ki%colors.length]}"/>`);
  });
- valid.forEach((r,i)=>{if(valid.length<=8||i===0||i===valid.length-1||i%Math.ceil(valid.length/5)===0){const label=r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year);svg+=`<text class="axis-label" x="${x(i)}" y="${H-5}" text-anchor="middle">${label}</text>`;}});
+ valid.forEach((r,i)=>{if(valid.length<=8||i===0||i===valid.length-1||i%Math.ceil(valid.length/5)===0){const label=(r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year))+(r.estimated?'(E)':'');svg+=`<text class="axis-label" x="${x(i)}" y="${H-5}" text-anchor="middle">${label}</text>`;}});
  const legend='<div class="dart-line-legend">'+keys.map((k,i)=>`<span><i style="background:${colors[i%colors.length]}"></i><b>${labels[i]}</b></span>`).join('')+'</div>';
  svg+='</svg>';
  host.innerHTML=legend+svg;
@@ -1273,7 +1273,7 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
    const top=Math.min(yy,zeroY),height=Math.max(1,Math.abs(zeroY-yy));
    svg+=`<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="2" fill="${colors[ki%colors.length]}"><title>${labels[ki]}: ${value.toLocaleString('ko-KR')}</title></rect>`;
   });
-  const label=r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year);
+  const label=(r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year))+(r.estimated?'(E)':'');
   if(valid.length<=12||i===0||i===valid.length-1||i%Math.ceil(valid.length/8)===0)
    svg+=`<text class="axis-label" x="${center}" y="${H-12}" text-anchor="middle">${label}</text>`;
  });
@@ -1285,6 +1285,7 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
 function renderDartFundamentals(data){
  dartFundamentalCache=data;
  const rows=(dartFundamentalPeriod==='annual'?data.annual:data.quarters)||[];
+ const investmentRows=(data.annual||[]).length?(data.annual||[]):rows;
  const latest=rows[rows.length-1]||{};
  const content=$('dartFundamentalContent');if(content)content.hidden=false;
  const periodLabel=latest.quarter?`${latest.year}년 ${latest.quarter}Q`:`${latest.year||'최근'}년`;
@@ -1330,6 +1331,12 @@ function renderDartFundamentals(data){
  dartFundamentalRenderLine('dartFundChartReceivables',rows,['receivablesTurnover'],['매출채권 회전율(회)']);
  dartFundamentalRenderLine('dartFundChartCashEarnings',rows,['ocfToNetIncome'],['OCF/순이익(%)']);
  dartFundamentalRenderLine('dartFundChartGrowth',rows,['revenueGrowth','operatingIncomeGrowth'],['매출 성장률(%)','영업이익 성장률(%)']);
+ dartFundamentalRenderLine('dartFundChartCapexDa',rows,['capexToDa'],['CAPEX/감가상각비(배)']);
+ dartFundamentalRenderLine('dartFundChartProfitability',rows,['grossMargin','roa','roe'],['매출총이익률(%)','ROA(%)','ROE(%)']);
+ dartFundamentalRenderLine('dartFundChartLiquidity',rows,['currentRatio','quickRatio'],['유동비율(%)','당좌비율(%)']);
+ dartFundamentalRenderLine('dartFundChartEvEbitda',investmentRows,['evEbitda'],['EV/EBITDA(배)']);
+ dartFundamentalRenderBars('dartFundChartPerShare',investmentRows,['eps','bps','sps'],['EPS(원)','BPS(원)','SPS(원)']);
+ dartFundamentalRenderLine('dartFundChartMultiples',investmentRows,['per','pbr','psr'],['PER(배)','PBR(배)','PSR(배)']);
  const money=(v,kind)=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${kind==='money-eok'?dartFundamentalFmtEok(v):dartFundamentalFmt(v)}억`;
  const ratio=(v,suffix='%')=>v===null||v===undefined||!Number.isFinite(Number(v))?'—':`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`;
  const period=r=>r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;
@@ -1347,7 +1354,7 @@ function renderDartFundamentals(data){
  renderRows('dartFundamentalRowsDebt',[{key:'netDebt',kind:'money'},{key:'netDebtEbitda',suffix:'배'},{key:'debtRatio'},{key:'currentRatio'},{key:'quickRatio'},{key:'interestCoverage',suffix:'배'}],7);
  renderRows('dartFundamentalRowsActivity',[{key:'inventoryTurnover',suffix:'회'},{key:'receivablesTurnover',suffix:'회'}],3);
  renderRows('dartFundamentalRowsGrowth',[{key:'ocfToNetIncome'},{key:'revenueGrowth'},{key:'operatingIncomeGrowth'}],4);
- const valuation=$('dartFundamentalRowsValuation');if(valuation){const source='https://stock.naver.com/domestic/stock/'+encodeURIComponent(current.code)+'/info/investment';const valuationRows=(data.evEbitdaHistory||[]).slice().reverse();valuation.innerHTML=valuationRows.map(r=>`<tr><td>${r.periodLabel||period(r)}</td><td>${ratio(r.evEbitda,'배')}</td><td><a href="${source}" target="_blank" rel="noopener noreferrer">네이버증권 투자지표</a></td></tr>`).join('')||'<tr><td colspan="3">네이버증권 가치분석 EV/EBITDA 자료 없음</td></tr>'; }
+ const valuation=$('dartFundamentalRowsValuation');if(valuation){const source='https://stock.naver.com/domestic/stock/'+encodeURIComponent(current.code)+'/info/investment';valuation.innerHTML=investmentRows.slice().reverse().map(r=>`<tr><td>${period(r)}${r.estimated?'(E)':''}</td><td>${ratio(r.eps,'원')}</td><td>${ratio(r.bps,'원')}</td><td>${ratio(r.sps,'원')}</td><td>${ratio(r.per,'배')}</td><td>${ratio(r.pbr,'배')}</td><td>${ratio(r.psr,'배')}</td><td>${ratio(r.evEbitda,'배')}</td><td><a href="${source}" target="_blank" rel="noopener noreferrer">네이버증권</a></td></tr>`).join('')||'<tr><td colspan="9">네이버증권 투자지표 자료 없음</td></tr>'; }
  const status=$('dartFundamentalStatus');if(status){const es=data.ebitdaSource;const evCount=(data.evEbitdaHistory||[]).length;status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · EBITDA: ${es?.ok?'네이버 원본 적용':`조회 실패 (${es?.message||'원본 없음'})`} · EV/EBITDA: ${evCount?'네이버 가치분석 원본 적용':'네이버 원본 자료 없음'} · 매 조회 최신 데이터`; }
 }
 async function loadDartFundamentals(force=false){
@@ -1356,7 +1363,7 @@ async function loadDartFundamentals(force=false){
  // 새 조회를 시작하면 직전 종목/직전 조회의 수치와 그래프를 즉시 비워 오래된 결과가 최신값처럼 보이지 않게 합니다.
  dartFundamentalCache=null;
  const content=$('dartFundamentalContent');if(content)content.hidden=true;
- for(const id of ['dartFundamentalMetrics','dartFundChartOpsCapex','dartFundChartCapexFcf','dartFundChartEbitda','dartFundChartRoic','dartFundChartNetDebtEbitda','dartFundChartDebtRatio','dartFundChartInterest','dartFundChartInventory','dartFundChartReceivables','dartFundChartCashEarnings','dartFundChartGrowth','dartFundamentalRowsCash','dartFundamentalRowsProfit','dartFundamentalRowsDebt','dartFundamentalRowsActivity','dartFundamentalRowsGrowth','dartFundamentalRowsValuation']){const el=$(id);if(el)el.replaceChildren();}
+ for(const id of ['dartFundamentalMetrics','dartFundChartOpsCapex','dartFundChartCapexFcf','dartFundChartEbitda','dartFundChartRoic','dartFundChartNetDebtEbitda','dartFundChartDebtRatio','dartFundChartInterest','dartFundChartInventory','dartFundChartReceivables','dartFundChartCashEarnings','dartFundChartGrowth','dartFundChartCapexDa','dartFundChartProfitability','dartFundChartLiquidity','dartFundChartEvEbitda','dartFundChartPerShare','dartFundChartMultiples','dartFundamentalRowsCash','dartFundamentalRowsProfit','dartFundamentalRowsDebt','dartFundamentalRowsActivity','dartFundamentalRowsGrowth','dartFundamentalRowsValuation']){const el=$(id);if(el)el.replaceChildren();}
  if(button){button.disabled=true;button.textContent='조회 중…';}
  if(status)status.textContent='최신 DART 재무정보와 네이버증권 투자지표 원본을 새로 조회합니다. 이전 조회 결과는 표시하지 않습니다.';
  try{

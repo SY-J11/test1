@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=113">
+<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=114">
   <link rel="apple-touch-icon" href="./Stock.png">
 </head>
 <body><div class="app">
@@ -67,15 +67,18 @@
     <div class="dart-fundamental-section"><h4>01 · 현금흐름 및 투자</h4><div class="dart-fundamental-chart-grid">
       <article class="dart-fundamental-chart-card"><b>영업현금흐름(OCF) + CAPEX</b><small>본업의 현금 창출력과 설비투자 · 억 원</small><div id="dartFundChartOpsCapex" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>CAPEX + FCF</b><small>설비투자와 투자 후 잔여 현금 · 억 원</small><div id="dartFundChartCapexFcf" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>CAPEX / 감가상각비</b><small>설비투자 ÷ 감가상각비 · 배</small><div id="dartFundChartCapexDa" class="dart-line-chart"></div></article>
     </div></div>
     <div class="dart-fundamental-section"><h4>02 · 수익성과 자본 효율</h4><div class="dart-fundamental-chart-grid">
       <article class="dart-fundamental-chart-card"><b>EBITDA 추이</b><small>수익 창출 규모 · EBITDA 마진은 요약 지표와 표에서 함께 확인</small><div id="dartFundChartEbitda" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>ROIC</b><small>투하자본 대비 세후영업이익 · %</small><div id="dartFundChartRoic" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>매출총이익률 · ROA · ROE</b><small>제품 수익성 및 자산·자본 효율 · %</small><div id="dartFundChartProfitability" class="dart-line-chart"></div></article>
     </div></div>
     <div class="dart-fundamental-section"><h4>03 · 재무 건전성</h4><div class="dart-fundamental-chart-grid">
       <article class="dart-fundamental-chart-card"><b>순차입금 / EBITDA</b><small>순차입금 ÷ EBITDA(TTM 우선, 부족 시 최근 분기 연환산) · 배</small><div id="dartFundChartNetDebtEbitda" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>부채비율</b><small>부채총계 ÷ 자본총계 · %</small><div id="dartFundChartDebtRatio" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>이자보상배율</b><small>영업이익 ÷ 이자비용 · 배</small><div id="dartFundChartInterest" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>유동비율 · 당좌비율</b><small>단기 지급능력 · %</small><div id="dartFundChartLiquidity" class="dart-line-chart"></div></article>
     </div></div>
     <div class="dart-fundamental-section"><h4>04 · 영업 효율성</h4><div class="dart-fundamental-chart-grid">
       <article class="dart-fundamental-chart-card"><b>재고자산 회전율</b><small>매출원가 ÷ 평균 재고자산 · 회</small><div id="dartFundChartInventory" class="dart-line-chart"></div></article>
@@ -85,6 +88,11 @@
       <article class="dart-fundamental-chart-card"><b>영업현금흐름 / 순이익</b><small>회계상 이익의 현금 전환 품질 · %</small><div id="dartFundChartCashEarnings" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>매출 성장률 + 영업이익 성장률</b><small>전년 동기 대비 성장률 · %</small><div id="dartFundChartGrowth" class="dart-line-chart"></div></article>
     </div></div>
+    <div class="dart-fundamental-section"><h4>06 · 주당지표 및 가치평가</h4><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"></div></article>
+      <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"></div></article>
+    </div></div>
     <div class="dart-fundamental-data-tables">
       <h4>재무 데이터 요약표</h4>
       <section class="dart-fundamental-table-group"><h5>01 · 현금흐름 및 투자</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>영업현금흐름</th><th>CAPEX</th><th>CAPEX/감가상각비</th><th>FCF</th></tr></thead><tbody id="dartFundamentalRowsCash"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
@@ -92,7 +100,7 @@
       <section class="dart-fundamental-table-group"><h5>03 · 재무 건전성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>순차입금</th><th>순차입금/EBITDA</th><th>부채비율</th><th>유동비율</th><th>당좌비율</th><th>이자보상배율</th></tr></thead><tbody id="dartFundamentalRowsDebt"><tr><td colspan="7">조회 대기 중</td></tr></tbody></table></div></section>
       <section class="dart-fundamental-table-group"><h5>04 · 영업 효율성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>재고자산 회전율</th><th>매출채권 회전율</th></tr></thead><tbody id="dartFundamentalRowsActivity"><tr><td colspan="3">조회 대기 중</td></tr></tbody></table></div></section>
       <section class="dart-fundamental-table-group"><h5>05 · 현금흐름 품질 및 성장성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>OCF/순이익</th><th>매출 성장률</th><th>영업이익 성장률</th></tr></thead><tbody id="dartFundamentalRowsGrowth"><tr><td colspan="4">조회 대기 중</td></tr></tbody></table></div></section>
-      <section class="dart-fundamental-table-group"><h5>06 · 가치 분석</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EV/EBITDA</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsValuation"><tr><td colspan="3">조회 대기 중</td></tr></tbody></table></div></section>
+      <section class="dart-fundamental-table-group"><h5>06 · 주당지표 및 가치 분석</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>EV/EBITDA(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsValuation"><tr><td colspan="9">조회 대기 중</td></tr></tbody></table></div></section>
     </div>
     <p class="dart-financial-note">연결재무제표 우선 · 금액 단위 억 원. FCF = 영업활동현금흐름 − CAPEX. ROIC·재고자산 회전율·매출채권 회전율은 평균 잔액 기준입니다. 분기 회전율·ROIC는 연환산하며, 성장률은 전년 동기 대비입니다. — 표시는 원천 계정 미공시, 계정명 차이, 전기 비교자료 부족 또는 계산에 필요한 입력값 부족을 의미합니다.</p>
   </div>
@@ -106,7 +114,7 @@
     <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
   </div>
 </div>
-<script src="app.js?v=113150"></script>
+<script src="app.js?v=114000"></script>
 <script>
 window.addEventListener('load', function () {
   try {
