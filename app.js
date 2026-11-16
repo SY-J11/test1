@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1256,7 +1256,7 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
  const pad=(max-min)*.10;min-=pad;max+=pad;
  const y=v=>T+(max-Number(v))/(max-min)*plotH,zeroY=y(0);
  const groupW=plotW/valid.length,barW=Math.max(5,Math.min(30,groupW*.30));
- const colors=['#16a36a','#3979d8'];
+ const colors=['#3979d8','#16a36a','#d58b28'];
  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${labels.join(', ')} 분기별 막대 그래프" preserveAspectRatio="xMidYMid meet">`;
  for(let g=0;g<=4;g++){
   const value=max-(max-min)*g/4,yy=y(value);
@@ -1285,7 +1285,7 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
 function renderDartFundamentals(data){
  dartFundamentalCache=data;
  const rows=(dartFundamentalPeriod==='annual'?data.annual:data.quarters)||[];
- const investmentRows=(data.annual||[]).length?(data.annual||[]):rows;
+ const investmentRows=(data.investmentAnnual||[]).length?(data.investmentAnnual||[]):((data.annual||[]).length?(data.annual||[]):rows);
  const latest=rows[rows.length-1]||{};
  const content=$('dartFundamentalContent');if(content)content.hidden=false;
  const periodLabel=latest.quarter?`${latest.year}년 ${latest.quarter}Q`:`${latest.year||'최근'}년`;
@@ -1293,7 +1293,7 @@ function renderDartFundamentals(data){
  const naverInvestmentUrl=`https://stock.naver.com/domestic/stock/${encodeURIComponent(current.code)}/info/investment`;
  const metricItems=[
   ['CAPEX',latest.capex,'설비투자액'],
-  ['CAPEX / 감가상각비',latest.capexToDa,'설비투자 ÷ 감가상각비','배'],
+  ['CAPEX / 감가상각비',latest.capexToDa,latest.capexToDaSource||'설비투자 ÷ 감가상각비','배'],
   ['FCF',latest.fcf,'잉여현금흐름'],
   ['영업현금흐름',latest.ocf,'OCF'],
   ['순차입금',latest.netDebt,'차입금 − 현금'],
