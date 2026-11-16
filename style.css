@@ -332,3 +332,9 @@
   color:var(--text);
   border-color:var(--line);
 }
+
+/* V47: PC 최근 6분기 영업이익 그래프만 가로폭 축소 (모바일 유지) */
+@media(min-width:601px){
+ .chart-scroll{width:50%;margin-left:auto;margin-right:auto}
+ .labels{width:50%;margin-left:auto;margin-right:auto}
+}
