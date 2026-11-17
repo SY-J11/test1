@@ -365,3 +365,11 @@
 .dart-line-legend .dart-series-toggle{appearance:none;border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;gap:6px;padding:3px 2px;margin:0;font:inherit;cursor:pointer;border-radius:5px}
 .dart-line-legend .dart-series-toggle.is-off{opacity:.32;text-decoration:line-through}
 .dart-line-legend .dart-series-toggle:focus-visible{outline:2px solid var(--accent,#5276a3);outline-offset:2px}
+
+/* V77: DART 최신 분기 핵심 지표를 의미별로 구분 */
+.dart-fundamental-metrics{display:block}
+.dart-fundamental-metric-group{margin:12px 0 16px}
+.dart-fundamental-metric-group>h5{margin:0 0 7px;font-size:11px;font-weight:800;color:var(--muted,#8490a3)}
+.dart-fundamental-metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+@media(max-width:520px){.dart-fundamental-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dart-fundamental-metric-group{margin:10px 0 14px}}
+.dart-fundamental-metrics-period{margin:10px 0 4px;font-size:11px;font-weight:800;color:var(--text,#182230)}

@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1396,37 +1396,42 @@ function renderDartFundamentals(data){
   const latest=rows[rows.length-1]||{};
  const content=$('dartFundamentalContent');if(content)content.hidden=false;
  const periodLabel=latest.quarter?`${latest.year}년 ${latest.quarter}Q`:`${latest.year||'최근'}년`;
- const evEbitdaValue=latest.evEbitda??null;
- const naverInvestmentUrl=`https://stock.naver.com/domestic/stock/${encodeURIComponent(current.code)}/info/investment`;
- const metricItems=[
-  ['CAPEX',latest.capex,'설비투자액'],
-  ['CAPEX / 감가상각비',latest.capexToDa,latest.capexToDaSource||'설비투자 ÷ 감가상각비','배'],
-  ['FCF',latest.fcf,'잉여현금흐름'],
-  ['영업현금흐름',latest.ocf,'OCF'],
-  ['순차입금',latest.netDebt,'차입금 − 현금'],
-  ['ROIC',latest.roic,`${periodLabel} · 세후영업이익 ÷ 평균 투하자본`,'%'],
-  ['ROA',latest.roa,`${periodLabel} · 최근 4분기 순이익 ÷ 평균 총자산`,'%'],
-  ['ROE',latest.roe,`${periodLabel} · 최근 4분기 순이익 ÷ 평균 자기자본`,'%'],
-  ['매출총이익률',latest.grossMargin,'(매출액 − 매출원가) ÷ 매출액','%'],
-  ['유동비율 · 당좌비율',null,'유동자산/유동부채 · (유동자산 − 재고자산 − 선급비용)/유동부채','PAIR_PERCENT',latest.currentRatio,latest.quickRatio],
-  ['EBITDA',latest.ebitda,`${periodLabel} · 네이버증권 EBITDA 원본`,'EBITDA_EOK'],
-  ['EBITDA 마진',latest.ebitdaMargin,'네이버증권 EBITDA마진율','%'],
-  ['EV / EBITDA',evEbitdaValue,`네이버증권 가치분석 · ${data.evEbitdaLatestLabel||'최근 확인값'}`,'배',null,null,naverInvestmentUrl],
-  ['순차입금 / EBITDA',latest.netDebtEbitda,'차입금 상환 부담','배'],
-  ['영업현금흐름 / 순이익',latest.ocfToNetIncome,'현금이익 전환 비율','%'],
-  ['이자보상배율',latest.interestCoverage,`${periodLabel} · 영업이익 ÷ 이자비용`,'배'],
-  ['재고자산 회전율',latest.inventoryTurnover,`${periodLabel} · 매출원가 ÷ 평균 재고자산`,'회'],
-  ['매출채권 회전율',latest.receivablesTurnover,`${periodLabel} · 매출액 ÷ 평균 매출채권`,'회'],
-  ['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],
-  ['현금성 자산',latest.cash,'현금 및 현금성 자산'],
-  ['재고자산',latest.inventory,'재무상태표 기준']
+ const metricGroups=[
+  {title:'현금흐름 및 투자',items:[
+   ['영업현금흐름',latest.ocf,'본업에서 창출한 현금'],
+   ['CAPEX',latest.capex,'유형·무형자산 취득 등 설비투자'],
+   ['FCF',latest.fcf,'영업현금흐름 − CAPEX'],
+   ['CAPEX / 감가상각비',latest.capexToDa,latest.capexToDaSource||'설비투자 ÷ 감가상각비','배']
+  ]},
+  {title:'수익성 및 자본 효율',items:[
+   ['EBITDA',latest.ebitda,`${periodLabel} · 네이버증권 EBITDA 원본`,'EBITDA_EOK'],
+   ['EBITDA 마진',latest.ebitdaMargin,'EBITDA ÷ 매출액','%'],
+   ['매출총이익률',latest.grossMargin,'(매출액 − 매출원가) ÷ 매출액','%'],
+   ['ROIC',latest.roic,`${periodLabel} · 세후영업이익 ÷ 평균 투하자본`,'%'],
+   ['ROA',latest.roa,'최근 4분기 순이익 ÷ 평균 총자산','%'],
+   ['ROE',latest.roe,'최근 4분기 순이익 ÷ 평균 자기자본','%']
+  ]},
+  {title:'재무 건전성',items:[
+   ['순차입금',latest.netDebt,'차입금 − 현금'],
+   ['순차입금 / EBITDA',latest.netDebtEbitda,'순차입금 ÷ EBITDA(TTM 우선)','배'],
+   ['부채비율',latest.debtRatio,'부채총계 ÷ 자본총계','%'],
+   ['유동비율 · 당좌비율',null,'유동자산/유동부채 · (유동자산 − 재고자산 − 선급비용)/유동부채','PAIR_PERCENT',latest.currentRatio,latest.quickRatio],
+   ['이자보상배율',latest.interestCoverage,`${periodLabel} · 영업이익 ÷ 이자비용`,'배'],
+   ['현금성 자산',latest.cash,'현금 및 현금성 자산']
+  ]},
+  {title:'영업 효율 및 자산 운용',items:[
+   ['재고자산',latest.inventory,'재무상태표 기준'],
+   ['재고자산 회전율',latest.inventoryTurnover,`${periodLabel} · 매출원가 ÷ 평균 재고자산`,'회'],
+   ['매출채권 회전율',latest.receivablesTurnover,`${periodLabel} · 매출액 ÷ 평균 매출채권`,'회'],
+   ['영업현금흐름 / 순이익',latest.ocfToNetIncome,'현금이익 전환 비율','%']
+  ]}
  ];
- const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=metricItems.map(([name,v,sub,suffix,pairA,pairB,link])=>{
+ const metrics=$('dartFundamentalMetrics');if(metrics)metrics.innerHTML=`<div class="dart-fundamental-metrics-period">기준 기간 · ${periodLabel}</div>`+metricGroups.map(group=>`<section class="dart-fundamental-metric-group"><h5>${group.title}</h5><div class="dart-fundamental-metric-grid">${group.items.map(([name,v,sub,suffix,pairA,pairB,link])=>{
   let value='—';
   if(suffix==='PAIR_PERCENT')value=`${pairA!==null&&pairA!==undefined&&Number.isFinite(Number(pairA))?`${Number(pairA).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:'—'} / ${pairB!==null&&pairB!==undefined&&Number.isFinite(Number(pairB))?`${Number(pairB).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:'—'}`;
   else if(v!==null&&v!==undefined&&Number.isFinite(Number(v)))value=suffix==='%'?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}%`:['회','배'].includes(suffix)?`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`:suffix==='EBITDA_EOK'?`${dartFundamentalFmtEok(v)}억`:`${dartFundamentalFmt(v)}억`;
-  return `<div class="dart-fundamental-metric"><small>${name}</small><b>${value}</b><em>${sub}${link?` · <a href="${link}" target="_blank" rel="noopener noreferrer">네이버 원본</a>`:''}</em></div>`;
- }).join('');
+  return `<div class="dart-fundamental-metric"><small>${name}</small><b>${value}</b><em>${sub}</em></div>`;
+ }).join('')}</div></section>`).join('');
  dartFundamentalRenderBars('dartFundChartOpsCapex',rows,['ocf','capex'],['영업현금흐름(OCF)','CAPEX']);
  dartFundamentalRenderLine('dartFundChartCapexFcf',rows,['capex','fcf'],['CAPEX','FCF']);
  dartFundamentalRenderLine('dartFundChartEbitda',rows,['ebitda'],['EBITDA(억원)']);
@@ -1458,7 +1463,7 @@ function renderDartFundamentals(data){
  renderRows('dartFundamentalRowsDebt',[{key:'netDebt',kind:'money'},{key:'netDebtEbitda',suffix:'배'},{key:'debtRatio'},{key:'currentRatio'},{key:'quickRatio'},{key:'interestCoverage',suffix:'배'}],7);
  renderRows('dartFundamentalRowsActivity',[{key:'inventoryTurnover',suffix:'회'},{key:'receivablesTurnover',suffix:'회'}],3);
  renderRows('dartFundamentalRowsGrowth',[{key:'ocfToNetIncome'},{key:'revenueGrowth'},{key:'operatingIncomeGrowth'}],4);
- const status=$('dartFundamentalStatus');if(status){const es=data.ebitdaSource;const evCount=(data.evEbitdaHistory||[]).length;status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · EBITDA: ${es?.ok?'네이버 원본 적용':`조회 실패 (${es?.message||'원본 없음'})`} · EV/EBITDA: ${evCount?'네이버 가치분석 원본 적용':'네이버 원본 자료 없음'} · WiseReport ${es?.finGubun||'기준 미확인'} · 매 조회 최신 데이터`; }
+ const status=$('dartFundamentalStatus');if(status){const es=data.ebitdaSource;status.textContent=`${data.companyName||current.name} · ${data.fsDiv==='CFS'?'연결재무제표':'별도재무제표'} · ${data.quarters?.length||0}개 분기 · ${data.annual?.length||0}개 연도 · EBITDA: ${es?.ok?'네이버 원본 적용':`조회 실패 (${es?.message||'원본 없음'})`} · 매 조회 최신 데이터`; }
 }
 async function loadDartFundamentals(force=false){
  const code=current?.code;if(!/^\d{6}$/.test(code||''))return;
