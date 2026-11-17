@@ -342,10 +342,10 @@
 
 /* 상단 요약 지표 사이의 주당지표·가치 분석 펼침 영역 */
 .dart-per-share-details{margin:8px 0 10px;padding:0;overflow:hidden}
-.dart-per-share-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;padding:11px 14px;font-size:13px;font-weight:800;color:var(--text,#182230);user-select:none}
+.dart-per-share-details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;gap:8px;min-height:42px;padding:11px 38px;font-size:13px;font-weight:800;color:var(--text,#182230);text-align:center;user-select:none}
 .dart-per-share-details>summary::-webkit-details-marker{display:none}
-.dart-per-share-arrow{font-size:16px;line-height:1;color:var(--muted,#8490a3);transition:transform .18s ease}
-.dart-per-share-details[open] .dart-per-share-arrow{transform:rotate(180deg)}
+.dart-per-share-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:16px;line-height:1;color:var(--muted,#8490a3);transition:transform .18s ease}
+.dart-per-share-details[open] .dart-per-share-arrow{transform:translateY(-50%) rotate(180deg)}
 .dart-per-share-details>.dart-fundamental-section,.dart-per-share-details>.dart-fundamental-data-tables{padding:0 12px 12px;margin-top:0}
 .dart-per-share-details .dart-fundamental-data-tables{margin-top:4px}
 @media(max-width:520px){.dart-per-share-details>summary{min-height:40px;padding:10px 12px;font-size:12px}.dart-per-share-details>.dart-fundamental-section,.dart-per-share-details>.dart-fundamental-data-tables{padding-left:9px;padding-right:9px}}

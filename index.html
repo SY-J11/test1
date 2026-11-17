@@ -26,14 +26,18 @@
 <section class="card quote"><div class="name"><div><span id="name">종목을 검색하세요</span><small id="code"></small></div><button id="fav">☆</button></div><div class="price" id="price">— <span id="change">종목을 선택하면 시세가 표시됩니다.</span></div></section>
 <section class="card daily-chart-card"><div class="daily-chart-heading"><b id="dailyChartTitle">120일봉 차트</b><span id="dailyChartRange">최근 거래일</span></div><div class="daily-chart-tabs" role="tablist" aria-label="차트 기간"><button type="button" class="active" data-period="day" role="tab" aria-selected="true">일</button><button type="button" data-period="week" role="tab" aria-selected="false">주</button><button type="button" data-period="month" role="tab" aria-selected="false">월</button><button type="button" data-period="year" role="tab" aria-selected="false">년</button></div><div id="dailyRangeTabs" class="daily-range-tabs" aria-label="조회 기간"></div><div id="dailyChart" class="daily-chart"><div class="chart-empty">종목을 검색하면 일봉 차트가 표시됩니다.</div></div></section>
 <section class="grid g4"><div class="metric"><label>PER</label><b id="per">—</b></div><div class="metric"><label>PBR</label><b id="pbr">—</b></div><div class="metric"><label>EPS</label><b id="eps">—</b></div><div class="metric"><label>시가총액</label><b id="cap">—</b></div></section>
-<details class="card dart-per-share-details" id="dartPerShareDetails" hidden>
+<details class="card dart-per-share-details" id="dartPerShareDetails">
   <summary>주당지표 및 가치 분석 <span class="dart-per-share-arrow" aria-hidden="true">⌄</span></summary>
-  <div class="dart-fundamental-section"><h4>06 · 주당지표 및 가치평가</h4><div class="dart-fundamental-chart-grid">
+  <div class="dart-fundamental-section"><h4>주당지표 및 가치 분석</h4><div class="dart-fundamental-chart-grid">
     <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"></div></article>
     <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"></div></article>
     <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"></div></article>
   </div></div>
-  <div class="dart-fundamental-data-tables"><h4>재무 데이터 요약표</h4><section class="dart-fundamental-table-group"><h5>06 · 주당지표 및 가치 분석</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>EV/EBITDA(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsValuation"><tr><td colspan="9">조회 대기 중</td></tr></tbody></table></div></section></div>
+  <div class="dart-fundamental-data-tables"><h4>재무 데이터 요약표</h4>
+    <section class="dart-fundamental-table-group"><h5>주당지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsPerShare"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
+    <section class="dart-fundamental-table-group"><h5>가치 배수</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsMultiples"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
+    <section class="dart-fundamental-table-group"><h5>매출 및 수익성 지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>매출액(억)</th><th>EBITDA(억)</th><th>EV/EBITDA(배)</th><th>ROE(%)</th><th>ROA(%)</th><th>ROIC(%)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsPerformance"><tr><td colspan="8">조회 대기 중</td></tr></tbody></table></div></section>
+  </div>
 </details>
 <section class="grid g3"><div class="metric"><label>지난해 영업이익</label><b id="annualOp">—</b></div><div class="metric"><label>최근 4Q 영업이익</label><b id="ttmOp">—</b></div><div class="metric"><label>최근 4Q 순이익 (순이익률)</label><b id="ttmNet">—</b></div></section>
 <section class="card eps"><label>최근 6분기 EPS</label><div class="epsrow" id="epsRows"></div></section>
