@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1287,6 +1287,44 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
  host.innerHTML=legend+svg;
 }
 
+// 막대(금액)와 선(비율/배수)을 좌우 축으로 결합한 주당지표 전용 복합 그래프.
+function dartFundamentalRenderCombo(hostId, rows, barKeys, barLabels, lineKey, lineLabel, leftUnit='억', rightUnit='%'){
+ const host=$(hostId);if(!host)return;
+ const valid=rows.filter(r=>barKeys.some(k=>r[k]!==null&&r[k]!==undefined&&Number.isFinite(Number(r[k])))||(r[lineKey]!==null&&r[lineKey]!==undefined&&Number.isFinite(Number(r[lineKey]))));
+ if(!valid.length){host.innerHTML='<div class="chart-empty">네이버 투자지표 자료 없음</div>';return;}
+ const W=640,H=270,L=58,R=48,T=16,B=42,plotW=W-L-R,plotH=H-T-B;
+ const barVals=valid.flatMap(r=>barKeys.map(k=>r[k]).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number));
+ const lineVals=valid.map(r=>r[lineKey]).filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))).map(Number);
+ let min=Math.min(0,...barVals),max=Math.max(0,...barVals);if(max===min){max+=1;min-=1;}const pad=(max-min)*.08;min-=pad;max+=pad;
+ let lineMin=Math.min(0,...lineVals),lineMax=Math.max(0,...lineVals);if(lineMax===lineMin){lineMax+=1;lineMin-=1;}const linePad=(lineMax-lineMin)*.08;lineMin-=linePad;lineMax+=linePad;
+ const y=v=>T+(max-Number(v))/(max-min)*plotH,ly=v=>T+(lineMax-Number(v))/(lineMax-lineMin)*plotH,zeroY=y(0);
+ const groupW=plotW/valid.length,barW=Math.max(5,Math.min(24,groupW/(barKeys.length+1)*.68)),barColors=['#3979d8','#16a36a'];
+ let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${barLabels.join(', ')} 및 ${lineLabel} 복합 그래프" preserveAspectRatio="xMidYMid meet">`;
+ for(let g=0;g<=4;g++){
+  const ratio=g/4,value=max-(max-min)*ratio,yy=T+plotH*ratio,lineValue=lineMax-(lineMax-lineMin)*ratio;
+  svg+=`<line class="gridline" x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}"/><text class="axis-label" x="${L-8}" y="${yy+3}" text-anchor="end">${Math.round(value).toLocaleString('ko-KR')}</text><text class="axis-label" x="${W-R+7}" y="${yy+3}" text-anchor="start">${lineValue.toLocaleString('ko-KR',{maximumFractionDigits:1})}</text>`;
+ }
+ svg+=`<text class="axis-label" x="${L}" y="10" text-anchor="start">${leftUnit}</text><text class="axis-label" x="${W-R}" y="10" text-anchor="end">${rightUnit}</text>`;
+ const linePts=[];
+ valid.forEach((r,i)=>{
+  const center=L+(i+.5)*groupW;
+  barKeys.forEach((key,ki)=>{
+   const raw=r[key];if(raw===null||raw===undefined||!Number.isFinite(Number(raw)))return;
+   const value=Number(raw),yy=y(value),x=center+(ki-(barKeys.length-1)/2)*(barW+3)-barW/2,top=Math.min(yy,zeroY),height=Math.max(1,Math.abs(zeroY-yy));
+   svg+=`<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="2" fill="${barColors[ki%barColors.length]}" opacity="${r.estimated?'.52':'1'}"><title>${barLabels[ki]}: ${value.toLocaleString('ko-KR')}${r.estimated?' (E)':''}</title></rect>`;
+  });
+  const lineValue=r[lineKey];
+  if(lineValue!==null&&lineValue!==undefined&&Number.isFinite(Number(lineValue)))linePts.push({x:center,y:ly(lineValue),value:Number(lineValue),estimated:!!r.estimated,label:(r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`)});
+  const label=(r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year))+(r.estimated?'(E)':'');
+  if(valid.length<=12||i===0||i===valid.length-1||i%Math.ceil(valid.length/8)===0)svg+=`<text class="axis-label" x="${center}" y="${H-12}" text-anchor="middle">${label}</text>`;
+ });
+ for(let i=1;i<linePts.length;i++){const a=linePts[i-1],b=linePts[i];svg+=`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="#d58b28" stroke-width="2" opacity="${a.estimated||b.estimated?'.52':'1'}"/>`;}
+ linePts.forEach(p=>svg+=`<circle cx="${p.x}" cy="${p.y}" r="3" fill="#d58b28" opacity="${p.estimated?'.52':'1'}"><title>${lineLabel}: ${p.value.toLocaleString('ko-KR',{maximumFractionDigits:2})}${p.estimated?' (E)':''}</title></circle>`);
+ svg+='</svg>';
+ const legend=`<div class="dart-line-legend dart-bar-legend">${barKeys.map((k,i)=>`<span><i style="background:${barColors[i%barColors.length]}"></i><b>${barLabels[i]}</b></span>`).join('')}<span><i style="background:#d58b28"></i><b>${lineLabel}</b></span></div>`;
+ host.innerHTML=legend+svg;
+}
+
 // 주당지표는 DART 기업 펀더멘털과 독립된 네이버 WiseReport 데이터로 조회합니다.
 let naverInvestmentCache=null;
 let naverInvestmentPeriod='quarter';
@@ -1294,11 +1332,22 @@ let naverInvestmentLoadedCode='';
 let naverInvestmentInFlightCode='';
 function renderNaverInvestment(data){
  naverInvestmentCache=data;
- const rows=(naverInvestmentPeriod==='annual'?(data.investmentAnnual||[]):(data.investmentQuarterly||[])).slice(naverInvestmentPeriod==='annual'?-4:-6);
+ const sourceRows=(naverInvestmentPeriod==='annual'?(data.investmentAnnual||[]):(data.investmentQuarterly||[])).slice(naverInvestmentPeriod==='annual'?-4:-6);
+ // EV는 별도 시가총액 자료가 아닌 EV/EBITDA 원본 배수로 계산한 추정 기업가치.
+ // 연간은 해당 연도 EBITDA, 분기는 해당 분기 EBITDA를 4배 연환산해 계산합니다.
+ const rows=sourceRows.map(r=>{
+  const hasValue=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+  const ebitda=hasValue(r.ebitda)?Number(r.ebitda):null,revenueRaw=r.revenueEok??r.revenue,revenue=hasValue(revenueRaw)?Number(revenueRaw):null;
+  const ebitdaMargin=hasValue(r.ebitdaMargin)?Number(r.ebitdaMargin):(ebitda!==null&&revenue!==null&&revenue>0?ebitda/revenue*100:null);
+  const annualizedEbitda=ebitda!==null&&ebitda>0?(naverInvestmentPeriod==='annual'?ebitda:ebitda*4):null;
+  const multiple=hasValue(r.evEbitda)?Number(r.evEbitda):null;
+  const evEok=annualizedEbitda!==null&&multiple!==null?annualizedEbitda*multiple:null;
+  return {...r,ebitdaMargin,evEok};
+ });
  dartFundamentalRenderBars('dartFundChartPerShare',rows,['eps','bps','sps'],['EPS(원)','BPS(원)','SPS(원)']);
  dartFundamentalRenderLine('dartFundChartMultiples',rows,['per','pbr','psr'],['PER(배)','PBR(배)','PSR(배)']);
- dartFundamentalRenderLine('dartFundChartEvEbitda',rows,['evEbitda'],['EV/EBITDA(배)']);
- dartFundamentalRenderBars('dartFundChartRevenueEbitda',rows,['revenueEok','ebitda'],['매출액(억원)','EBITDA(억원)']);
+ dartFundamentalRenderCombo('dartFundChartEvEbitda',rows,['evEok','ebitda'],['EV(억)','EBITDA(억)'],'evEbitda','EV/EBITDA','억','배');
+ dartFundamentalRenderCombo('dartFundChartRevenueEbitda',rows,['revenueEok','ebitda'],['매출액(억)','EBITDA(억)'],'ebitdaMargin','EBITDA 마진율','억','%');
  dartFundamentalRenderLine('dartFundChartReturns',rows,['roe','roa','roic'],['ROE(%)','ROA(%)','ROIC(%)']);
  const ratio=(v,suffix)=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))?'—':`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2})}${suffix}`;
  const period=r=>r.quarter?`${r.year}년 ${r.quarter}Q`:`${r.year}년`;
@@ -1306,7 +1355,8 @@ function renderNaverInvestment(data){
  renderTable('dartFundamentalRowsPerShare',[{key:'eps',suffix:'원'},{key:'bps',suffix:'원'},{key:'sps',suffix:'원'}],4);
  renderTable('dartFundamentalRowsMultiples',[{key:'per',suffix:'배'},{key:'pbr',suffix:'배'},{key:'psr',suffix:'배'}],4);
  const renderMoneyEok=v=>v===null||v===undefined||v===''||!Number.isFinite(Number(v))?'—':`${Number(v).toLocaleString('ko-KR',{maximumFractionDigits:1})}억`;
- const performanceHost=$('dartFundamentalRowsPerformance');if(performanceHost){performanceHost.innerHTML=rows.slice().reverse().map(r=>`<tr><td>${period(r)}${r.estimated?'(E)':''}</td><td>${renderMoneyEok(r.revenueEok??r.revenue)}</td><td>${renderMoneyEok(r.ebitda)}</td>${[{key:'evEbitda',suffix:'배'},{key:'roe',suffix:'%'},{key:'roa',suffix:'%'},{key:'roic',suffix:'%'}].map(c=>{const v=r[c.key],negative=Number.isFinite(Number(v))&&Number(v)<0?'negative':'';return `<td class="${negative}">${ratio(v,c.suffix)}</td>`}).join('')}</tr>`).join('')||'<tr><td colspan="7">네이버증권 투자지표 자료 없음</td></tr>';}
+ const performanceHost=$('dartFundamentalRowsPerformance');if(performanceHost){performanceHost.innerHTML=rows.slice().reverse().map(r=>`<tr><td>${period(r)}${r.estimated?'(E)':''}</td><td>${renderMoneyEok(r.revenueEok??r.revenue)}</td><td>${renderMoneyEok(r.ebitda)}</td><td>${ratio(r.ebitdaMargin,'%')}</td><td>${renderMoneyEok(r.evEok)}</td><td>${ratio(r.evEbitda,'배')}</td></tr>`).join('')||'<tr><td colspan="6">네이버 투자지표 자료 없음</td></tr>';}
+ const returnsHost=$('dartFundamentalRowsReturns');if(returnsHost){returnsHost.innerHTML=rows.slice().reverse().map(r=>`<tr><td>${period(r)}${r.estimated?'(E)':''}</td>${['roe','roa','roic'].map(k=>{const v=r[k],negative=Number.isFinite(Number(v))&&Number(v)<0?'negative':'';return `<td class="${negative}">${ratio(v,'%')}</td>`}).join('')}</tr>`).join('')||'<tr><td colspan="4">네이버 투자지표 자료 없음</td></tr>';}
  const status=$('naverInvestmentStatus');if(status){const count=rows.length;status.textContent=`네이버증권 투자지표 원본 · ${naverInvestmentPeriod==='annual'?'최근 4년':'최근 6개 분기'} · ${count}개 기간`;}
 }
 async function loadNaverInvestment(code,force=false){
@@ -1316,7 +1366,7 @@ async function loadNaverInvestment(code,force=false){
  naverInvestmentInFlightCode=code;
  const status=$('naverInvestmentStatus');if(status)status.textContent='네이버 투자지표를 불러오는 중입니다.';
  for(const id of ['dartFundChartPerShare','dartFundChartMultiples','dartFundChartEvEbitda','dartFundChartRevenueEbitda','dartFundChartReturns']){const el=$(id);if(el)el.innerHTML='<div class="chart-empty">네이버 투자지표 조회 중…</div>';}
- for(const [id,span] of [['dartFundamentalRowsPerShare',4],['dartFundamentalRowsMultiples',4],['dartFundamentalRowsPerformance',7]]){const el=$(id);if(el)el.innerHTML=`<tr><td colspan="${span}">네이버 투자지표 조회 중…</td></tr>`;}
+ for(const [id,span] of [['dartFundamentalRowsPerShare',4],['dartFundamentalRowsMultiples',4],['dartFundamentalRowsPerformance',6],['dartFundamentalRowsReturns',4]]){const el=$(id);if(el)el.innerHTML=`<tr><td colspan="${span}">네이버 투자지표 조회 중…</td></tr>`;}
  try{
   const res=await fetch(`${DART_PROXY}/?dart=investment&stock_code=${encodeURIComponent(code)}`,{cache:'no-store'});
   const data=await res.json();
