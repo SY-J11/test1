@@ -272,7 +272,7 @@
 .dart-fundamental-table-wrap{overflow-x:auto;margin-top:12px}
 .dart-fundamental-table{width:100%;border-collapse:collapse;font-size:10px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .dart-fundamental-table th,.dart-fundamental-table td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line,#e5e9ef)}
-.dart-fundamental-table th:first-child,.dart-fundamental-table td:first-child{text-align:left}
+.dart-fundamental-table th{text-align:center}.dart-fundamental-table td:first-child{text-align:center}
 .dart-fundamental-table th{color:var(--muted,#8490a3);background:var(--soft,#f7f8fa);font-weight:600}
 .dart-fundamental-table td.negative{color:#3979d8}
 @media(max-width:520px){.dart-fundamental-card{padding:13px}.dart-fundamental-head h3{font-size:15px}.dart-fundamental-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.dart-fundamental-metric b{font-size:13px}.dart-fundamental-chart-grid{gap:7px}.dart-fundamental-chart-card{padding:8px}.dart-line-chart svg{height:105px}.dart-period-switch button{padding:7px 8px;font-size:10px}.dart-fundamental-table{font-size:9px}}

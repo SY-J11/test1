@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1234,10 +1234,14 @@ function dartFundamentalRenderLine(hostId, rows, keys, labels, unit='억'){
  let svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${labels.join(', ')} 추이 그래프">`;
  for(let g=0;g<4;g++){const yy=T+g*plotH/3;svg+=`<line class="gridline" x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}"/>`;}
  keys.forEach((key,ki)=>{
-  const pts=valid.map((r,i)=>r[key]===null||r[key]===undefined||!Number.isFinite(Number(r[key]))?null:[x(i),y(r[key])]).filter(Boolean);
+  const pts=valid.map((r,i)=>r[key]===null||r[key]===undefined||!Number.isFinite(Number(r[key]))?null:{x:x(i),y:y(r[key]),estimated:!!r.estimated}).filter(Boolean);
   if(!pts.length)return;
-  svg+=`<polyline class="series-line" stroke="${colors[ki%colors.length]}" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
-  pts.forEach(p=>svg+=`<circle class="series-point" cx="${p[0]}" cy="${p[1]}" r="2.7" fill="${colors[ki%colors.length]}"/>`);
+  // 예상치(E)는 해당 점과 그 점에 연결되는 선분만 살짝 흐리게 표시
+  for(let i=1;i<pts.length;i++){
+   const a=pts[i-1],b=pts[i],opacity=(a.estimated||b.estimated)?'.52':'1';
+   svg+=`<line class="series-line" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${colors[ki%colors.length]}" opacity="${opacity}"/>`;
+  }
+  pts.forEach(p=>svg+=`<circle class="series-point" cx="${p.x}" cy="${p.y}" r="2.7" fill="${colors[ki%colors.length]}" opacity="${p.estimated?'.52':'1'}"/>`);
  });
  valid.forEach((r,i)=>{if(valid.length<=8||i===0||i===valid.length-1||i%Math.ceil(valid.length/5)===0){const label=(r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year))+(r.estimated?'(E)':'');svg+=`<text class="axis-label" x="${x(i)}" y="${H-5}" text-anchor="middle">${label}</text>`;}});
  const legend='<div class="dart-line-legend">'+keys.map((k,i)=>`<span><i style="background:${colors[i%colors.length]}"></i><b>${labels[i]}</b></span>`).join('')+'</div>';
@@ -1271,7 +1275,7 @@ function dartFundamentalRenderBars(hostId, rows, keys, labels, unit='억'){
    const raw=r[key];if(raw===null||raw===undefined||!Number.isFinite(Number(raw)))return;
    const value=Number(raw),yy=y(value),x=center+(ki-(keys.length-1)/2)*(barW+4)-barW/2;
    const top=Math.min(yy,zeroY),height=Math.max(1,Math.abs(zeroY-yy));
-   svg+=`<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="2" fill="${colors[ki%colors.length]}"><title>${labels[ki]}: ${value.toLocaleString('ko-KR')}</title></rect>`;
+   svg+=`<rect x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${barW.toFixed(1)}" height="${height.toFixed(1)}" rx="2" fill="${colors[ki%colors.length]}" opacity="${r.estimated?'.52':'1'}"><title>${labels[ki]}: ${value.toLocaleString('ko-KR')}${r.estimated?' (E)':''}</title></rect>`;
   });
   const label=(r.quarter?`${String(r.year).slice(2)}.${r.quarter}Q`:String(r.year))+(r.estimated?'(E)':'');
   if(valid.length<=12||i===0||i===valid.length-1||i%Math.ceil(valid.length/8)===0)
