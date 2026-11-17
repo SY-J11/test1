@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -69,7 +69,17 @@ async function loadDailyPrices120(code,onProgress){
  }
  const merged=[...byDate.values()].sort((a,b)=>dateOf(a).localeCompare(dateOf(b)));
  if(!merged.length)throw Error('일봉 API 응답에서 가격 데이터가 확인되지 않습니다.');
- return merged.slice(-120);
+ const result=merged.slice(-120);
+ // 초기 120개 가격을 장기 차트 저장소에도 반영해 loadChartPeriod가 1·2페이지를 다시 요청하지 않게 합니다.
+ // 이후 추가 과거 구간만 fetchDailyRows가 이어서 조회합니다.
+ try{
+  const normalized=normalizeCandleRows(result);
+  const previous=dailyRowsStore.get(code);
+  if(normalized.length&&(!previous||previous.rows.length<normalized.length)){
+   dailyRowsStore.set(code,{rows:normalized,exhausted:false,priceEnded:false,deepEnded:false});
+  }
+ }catch(e){console.warn('초기 가격 데이터 캐시 반영 실패',e)}
+ return result;
 }
 async function getText(url){
  const now=Date.now(),cached=textMemoryCache.get(url);
@@ -533,7 +543,7 @@ function renderRangeTabs(period){const box=$('dailyRangeTabs');if(!box)return;bo
 async function fetchDailyRows(code,days){
  const old=dailyRowsStore.get(code)||{rows:[],exhausted:false,priceEnded:false,deepEnded:false};
  const byDate=new Map(old.rows.map(r=>[r.date,r]));
- const maxPages=Math.min(320,Math.ceil(days/60)+1);let page=Math.max(1,Math.floor(old.rows.length/60)),priceEnded=!!old.priceEnded,deepEnded=!!old.deepEnded;
+ const maxPages=Math.min(320,Math.ceil(days/60)+1);let page=Math.max(1,Math.ceil(old.rows.length/60)+1),priceEnded=!!old.priceEnded,deepEnded=!!old.deepEnded;
  // 1단계: 모바일 가격 API(pageSize=60)를 페이지 순서로 조회. 이 API는 약 2003년 이전 이력을 주지 않을 수 있다.
  while(!priceEnded&&page<=maxPages){
   const nums=Array.from({length:Math.min(10,maxPages-page+1)},(_,i)=>page+i);
@@ -923,6 +933,7 @@ $('dailyRangeTabs')?.addEventListener('click',e=>{const b=e.target.closest('butt
 // ===== 투자자 동향 그래프 (외국인 · 기관 · 개인 일별 순매수) =====
 const invRanges=[5,10,20,40,60,100,120,200,240];
 let invRangeSel=60,invRows=[],invToken=0,invMode='daily';
+const investorTrendCache=new Map(),investorTrendInFlight=new Map();
 function invNet(o,type){
  if(!o||typeof o!=='object')return null;
  const A={foreign:{net:['foreignNetVolume','foreignerNetVolume','foreignPureBuyQuant','foreignerPureBuyQuant'],buy:['foreignBuyVolume','foreignerBuyVolume'],sell:['foreignSellVolume','foreignerSellVolume']},
@@ -1009,9 +1020,20 @@ async function loadInvestorTrend(code){
  invMode='daily';syncInvestorModeTabs();
  invRows=[];host.innerHTML='<div class="chart-empty">투자자 동향을 불러오는 중…</div>';$('invTable').innerHTML='';$('invSum').innerHTML='';$('invRange').textContent='';
  try{
-  const [kr,nx]=await Promise.all([fetchInvestorMap(code,'KRX',250),fetchInvestorMap(code,'NXT',250).catch(()=>new Map())]);
+  const cached=investorTrendCache.get(code);
+  let rows=cached&&cached.expires>Date.now()?cached.rows:null;
+  if(!rows){
+   let task=investorTrendInFlight.get(code);
+   if(!task){
+    task=Promise.all([fetchInvestorMap(code,'KRX',250),fetchInvestorMap(code,'NXT',250).catch(()=>new Map())])
+      .then(([kr,nx])=>combineInvestor(kr,nx));
+    investorTrendInFlight.set(code,task);
+   }
+   try{rows=await task;}finally{if(investorTrendInFlight.get(code)===task)investorTrendInFlight.delete(code)}
+   if(rows?.length){investorTrendCache.set(code,{rows,expires:Date.now()+15000});if(investorTrendCache.size>40)investorTrendCache.delete(investorTrendCache.keys().next().value)}
+  }
   if(token!==invToken)return;
-  const rows=combineInvestor(kr,nx);if(!rows.length)throw Error('empty');
+  if(!rows?.length)throw Error('empty');
   invRows=rows;renderInvestorTrend();
  }catch(e){if(token===invToken)host.innerHTML='<div class="chart-empty">투자자 동향 데이터를 불러오지 못했습니다.</div>'}
 }
