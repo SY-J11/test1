@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=121">
+<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=122">
   <link rel="apple-touch-icon" href="./Stock.png">
 </head>
 <body><div class="app">
@@ -28,15 +28,23 @@
 <section class="grid g4"><div class="metric"><label>PER</label><b id="per">—</b></div><div class="metric"><label>PBR</label><b id="pbr">—</b></div><div class="metric"><label>EPS</label><b id="eps">—</b></div><div class="metric"><label>시가총액</label><b id="cap">—</b></div></section>
 <details class="card dart-per-share-details" id="dartPerShareDetails">
   <summary>주당지표 및 가치 분석 <span class="dart-per-share-arrow" aria-hidden="true">⌄</span></summary>
-  <div class="dart-fundamental-section"><h4>주당지표 및 가치 분석</h4><div class="dart-fundamental-chart-grid">
-    <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"></div></article>
-    <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"></div></article>
-    <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"></div></article>
-  </div></div>
-  <div class="dart-fundamental-data-tables"><h4>재무 데이터 요약표</h4>
-    <section class="dart-fundamental-table-group"><h5>주당지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsPerShare"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
-    <section class="dart-fundamental-table-group"><h5>가치 배수</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsMultiples"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
-    <section class="dart-fundamental-table-group"><h5>매출 및 수익성 지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>매출액(억)</th><th>EBITDA(억)</th><th>EV/EBITDA(배)</th><th>ROE(%)</th><th>ROA(%)</th><th>ROIC(%)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsPerformance"><tr><td colspan="8">조회 대기 중</td></tr></tbody></table></div></section>
+  <div class="dart-per-share-content">
+    <div class="dart-period-switch dart-per-share-period-switch" role="group" aria-label="주당지표 조회 기간">
+      <button type="button" data-naver-period="quarter" class="active">분기별 · 최근 6개</button>
+      <button type="button" data-naver-period="annual">연간별 · 최근 4년</button>
+    </div>
+    <div class="dart-fundamental-section"><div class="dart-fundamental-chart-grid">
+      <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"><div class="chart-empty">네이버 투자지표 조회 중…</div></div></article>
+      <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"><div class="chart-empty">네이버 투자지표 조회 중…</div></div></article>
+      <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"><div class="chart-empty">네이버 투자지표 조회 중…</div></div></article>
+    </div></div>
+    <div class="dart-fundamental-data-tables">
+      <h4>재무 데이터 요약표</h4>
+      <section class="dart-fundamental-table-group"><h5>주당지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th></tr></thead><tbody id="dartFundamentalRowsPerShare"><tr><td colspan="4">네이버 투자지표 조회 중…</td></tr></tbody></table></div></section>
+      <section class="dart-fundamental-table-group"><h5>가치 배수</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th></tr></thead><tbody id="dartFundamentalRowsMultiples"><tr><td colspan="4">네이버 투자지표 조회 중…</td></tr></tbody></table></div></section>
+      <section class="dart-fundamental-table-group"><h5>매출 및 수익성 지표</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EV/EBITDA(배)</th></tr></thead><tbody id="dartFundamentalRowsPerformance"><tr><td colspan="2">네이버 투자지표 조회 중…</td></tr></tbody></table></div></section>
+    </div>
+    <p id="naverInvestmentStatus" class="dart-per-share-status" aria-live="polite">네이버 투자지표를 불러오는 중입니다.</p>
   </div>
 </details>
 <section class="grid g3"><div class="metric"><label>지난해 영업이익</label><b id="annualOp">—</b></div><div class="metric"><label>최근 4Q 영업이익</label><b id="ttmOp">—</b></div><div class="metric"><label>최근 4Q 순이익 (순이익률)</label><b id="ttmNet">—</b></div></section>
@@ -121,7 +129,7 @@
     <div class="dart-modal-viewport"><div id="dartFrameStage" class="dart-frame-stage"><iframe id="dartFrame" title="DART 전자공시" src="about:blank" width="750" height="900" frameborder="0" scrolling="auto"></iframe></div></div>
   </div>
 </div>
-<script src="app.js?v=120000"></script>
+<script src="app.js?v=120001"></script>
 <script>
 window.addEventListener('load', function () {
   try {

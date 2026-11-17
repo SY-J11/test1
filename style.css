@@ -349,3 +349,9 @@
 .dart-per-share-details>.dart-fundamental-section,.dart-per-share-details>.dart-fundamental-data-tables{padding:0 12px 12px;margin-top:0}
 .dart-per-share-details .dart-fundamental-data-tables{margin-top:4px}
 @media(max-width:520px){.dart-per-share-details>summary{min-height:40px;padding:10px 12px;font-size:12px}.dart-per-share-details>.dart-fundamental-section,.dart-per-share-details>.dart-fundamental-data-tables{padding-left:9px;padding-right:9px}}
+
+/* V65: 주당지표는 DART 분석과 분리된 네이버 투자지표 영역 */
+.dart-per-share-content{padding:0 12px 12px}
+.dart-per-share-period-switch{margin:0 0 12px}
+.dart-per-share-status{margin:8px 2px 0;color:var(--muted,#8490a3);font-size:11px;text-align:right}
+@media(max-width:520px){.dart-per-share-content{padding-left:9px;padding-right:9px}}
