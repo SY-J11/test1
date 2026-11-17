@@ -336,7 +336,9 @@
 /* V47: PC 최근 6분기 영업이익 그래프만 가로폭 축소 (모바일 유지) */
 @media(min-width:601px){
  .chart-scroll{width:50%;margin-left:auto;margin-right:auto}
- .labels{width:50%;margin-left:auto;margin-right:auto}
+ /* 음수 분기에서 SVG 내부 기간 라벨 대신 외부 .labels를 사용할 때도
+    차트와 동일한 폭을 유지해 6개 기간이 각 막대 아래에 정렬되도록 한다. */
+ .labels{width:100%;margin-left:0;margin-right:0}
 }
 
 
