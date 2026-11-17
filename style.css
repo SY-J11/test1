@@ -357,3 +357,11 @@
 .dart-per-share-period-switch{margin:0 0 12px}
 .dart-per-share-status{margin:8px 2px 0;color:var(--muted,#8490a3);font-size:11px;text-align:right}
 @media(max-width:520px){.dart-per-share-content{padding-left:9px;padding-right:9px}}
+
+/* V74: 주당지표 기간 선택 영역은 버튼 폭에 맞추고 불필요한 회색 여백 제거 */
+.dart-per-share-period-switch{display:inline-flex!important;width:max-content;max-width:100%;flex:0 0 auto;align-self:flex-start;}
+.dart-per-share-period-switch button{flex:0 0 auto;white-space:nowrap;}
+/* V74: 그래프 범례를 개별 표시/숨김 토글로 사용 */
+.dart-line-legend .dart-series-toggle{appearance:none;border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;gap:6px;padding:3px 2px;margin:0;font:inherit;cursor:pointer;border-radius:5px}
+.dart-line-legend .dart-series-toggle.is-off{opacity:.32;text-decoration:line-through}
+.dart-line-legend .dart-series-toggle:focus-visible{outline:2px solid var(--accent,#5276a3);outline-offset:2px}
