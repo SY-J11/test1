@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -10,7 +10,7 @@ const dailyChartForeignDone=new Set(),dailyChartForeignInFlight=new Set();
 const chartRanges={day:[5,10,20,40,60,100,120,200,240],week:[4,8,16,24,32,64,128,256,512],month:[6,12,18,24,30,36,42,48,60],year:[10,15,20,25]};
 const chartRangeDefault={day:120,week:64,month:24,year:20},chartUnit={day:'일',week:'주',month:'월',year:'년'};
 let chartRangeSel={...chartRangeDefault};
-const dailyRowsStore=new Map(),foreignStore=new Map();
+const dailyRowsStore=new Map(),foreignStore=new Map(),foreignRateInFlight=new Map();
 let exhaustionStore={code:'',value:null};
 const jsonMemoryCache=new Map(),jsonInFlight=new Map(),textMemoryCache=new Map(),textInFlight=new Map();
 const FAVORITES_KEY='stockInsightProFavorites';
@@ -707,6 +707,24 @@ async function ensureForeign(code,startDate,endDate,isDay,count){
  st.from=st.from===null||startDate<st.from?startDate:st.from;st.to=st.to===null||endDate>st.to?endDate:st.to;
  return changed;
 }
+// 종목별 외국인 보유율은 최대 240거래일을 최초 1회 조회하고 기간 탭에서는 재사용한다.
+async function getForeignRatesOnce(code,from,to){
+ const cached=foreignStore.get(code);
+ if(cached?.map?.size&&cached.from<=from&&cached.to>=to)return cached.map;
+ const pending=foreignRateInFlight.get(code);
+ if(pending)return pending;
+ const task=(async()=>{
+  const fresh=await fetchForeignRange(code,from,to,true,240);
+  // 새로고침으로 더 최신 요청이 시작됐다면 이전 요청 결과가 캐시를 덮어쓰지 않게 한다.
+  if(foreignRateInFlight.get(code)!==task)return fresh;
+  const map=new Map(cached?.map||[]);
+  for(const [date,rate] of fresh)map.set(date,rate);
+  foreignStore.set(code,{map,from:cached?.from&&cached.from<from?cached.from:from,to:cached?.to&&cached.to>to?cached.to:to});
+  return map;
+ })();
+ foreignRateInFlight.set(code,task);
+ try{return await task}finally{if(foreignRateInFlight.get(code)===task)foreignRateInFlight.delete(code)}
+}
 async function loadChartPeriod(period){
  if(!current.code)return;
  dailyChartPeriod=period;const code=current.code,request=++dailyChartRequest,host=$('dailyChart'),limit=chartRangeSel[period];
@@ -731,7 +749,8 @@ async function loadChartPeriod(period){
    const priceRows=(dailyRowsStore.get(code)?.rows||[]).slice(-240);
    if(!priceRows.length)throw Error('외국인 보유율 조회 기준 가격일이 없습니다');
    const from=priceRows[0].date,to=priceRows[priceRows.length-1].date;
-   const freshRates=await fetchForeignRange(code,from,to,true,240);
+   // 최초 조회만 네이버에 요청하고, 이후 기간/범위 변경은 종목별 240일 캐시를 재사용한다.
+   const freshRates=await getForeignRatesOnce(code,from,to);
    if(stale())return;
    // 일봉은 날짜별로, 주봉·월봉·년봉은 각 기간 안의 마지막 실제 거래일 보유율로 연결한다.
    const bucketKey=(date,p)=>{
@@ -825,7 +844,7 @@ async function loadInitialStockFromUrl(){
   if(local.length===1)load(local[0].code,local[0].name);else showResults(local,target.name,local.length?'종목을 선택해 주세요.':'종목 검색에 실패했습니다. 종목명이나 코드를 확인해 주세요.');
  }
 }
-async function load(code,name=''){dailyChartPeriod='day';chartRangeSel={...chartRangeDefault};dailyRowsStore.delete(code);foreignStore.delete(code);renderRangeTabs('day');$('dailyChartTitle').textContent='120일봉 차트';dailyChartCache.clear();loadInvestorTrend(code);dailyChartForeignDone.clear();dailyChartForeignInFlight.clear();document.querySelectorAll('.daily-chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.period==='day');b.setAttribute('aria-selected',String(b.dataset.period==='day'))});const id=++seq,known=seed.find(x=>x.code===code);current={code,name:name||known?.name||code};dartFundamentalRequestId++;dartFundamentalInFlightCode='';if($('dartFundamentalLoad')){$('dartFundamentalLoad').disabled=false;$('dartFundamentalLoad').textContent='데이터 불러오기';}dartConsensusQuarters=[];dartFinancialDataCache=null;dartNaverEarningsData=null;dartFundamentalCache=null;dartFundamentalLoadedCode='';naverInvestmentCache=null;naverInvestmentLoadedCode='';naverInvestmentPeriod='quarter';document.querySelectorAll('[data-naver-period]').forEach(b=>b.classList.toggle('active',b.dataset.naverPeriod==='quarter'));if($('dartPerShareDetails'))$('dartPerShareDetails').hidden=false;if($('dartFundamentalLoad'))$('dartFundamentalLoad').hidden=false;if($('dartFundamentalRefresh'))$('dartFundamentalRefresh').hidden=true;if($('dartFundamentalContent'))$('dartFundamentalContent').hidden=true;renderDartSurpriseAnalysis();loadDartFinancials();loadNaverInvestment(code);const dartLink=$('dartLink');if(dartLink){const dartName=name||known?.name||code;dartLink.href=`https://dart.fss.or.kr/html/search/SearchCompanyIR3_M.html?textCrpNM=${encodeURIComponent(dartName)}`;dartLink.dataset.dartName=dartName;}updateFavoriteButton();$('name').textContent=current.name;$('code').textContent=code;$('change').textContent='데이터 조회 중…';$('status').textContent='네이버 증권 데이터 조회 중…';$('query').value=current.name;$('results').hidden=true;$('chart').innerHTML='<div class="chart-empty">분기 재무 데이터 조회 중…</div>';try{const flowKrxPromise=Promise.race([fetchFlowHistory(code,'KRX'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const flowNxtPromise=Promise.race([fetchFlowHistory(code,'NXT'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const floatSharesPromise=Promise.race([loadFloatingSharesFromCompany(code).catch(()=>null),new Promise(resolve=>setTimeout(()=>resolve(null),2200))]);const pricePromise=loadDailyPrices120(code,raw=>{if(id!==seq)return;renderDailyChart(raw,'day')});pricePromise.then(raw=>{if(id!==seq)return;dailyChartCache.set(code+'-day',raw);renderDailyChart(raw,'day');loadChartPeriod('day')}).catch(()=>{});const results=await Promise.allSettled([
+async function load(code,name=''){dailyChartPeriod='day';chartRangeSel={...chartRangeDefault};dailyRowsStore.delete(code);foreignStore.delete(code);foreignRateInFlight.delete(code);renderRangeTabs('day');$('dailyChartTitle').textContent='120일봉 차트';dailyChartCache.clear();loadInvestorTrend(code);dailyChartForeignDone.clear();dailyChartForeignInFlight.clear();document.querySelectorAll('.daily-chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.period==='day');b.setAttribute('aria-selected',String(b.dataset.period==='day'))});const id=++seq,known=seed.find(x=>x.code===code);current={code,name:name||known?.name||code};dartFundamentalRequestId++;dartFundamentalInFlightCode='';if($('dartFundamentalLoad')){$('dartFundamentalLoad').disabled=false;$('dartFundamentalLoad').textContent='데이터 불러오기';}dartConsensusQuarters=[];dartFinancialDataCache=null;dartNaverEarningsData=null;dartFundamentalCache=null;dartFundamentalLoadedCode='';naverInvestmentCache=null;naverInvestmentLoadedCode='';naverInvestmentPeriod='quarter';document.querySelectorAll('[data-naver-period]').forEach(b=>b.classList.toggle('active',b.dataset.naverPeriod==='quarter'));if($('dartPerShareDetails'))$('dartPerShareDetails').hidden=false;if($('dartFundamentalLoad'))$('dartFundamentalLoad').hidden=false;if($('dartFundamentalRefresh'))$('dartFundamentalRefresh').hidden=true;if($('dartFundamentalContent'))$('dartFundamentalContent').hidden=true;renderDartSurpriseAnalysis();loadDartFinancials();loadNaverInvestment(code);const dartLink=$('dartLink');if(dartLink){const dartName=name||known?.name||code;dartLink.href=`https://dart.fss.or.kr/html/search/SearchCompanyIR3_M.html?textCrpNM=${encodeURIComponent(dartName)}`;dartLink.dataset.dartName=dartName;}updateFavoriteButton();$('name').textContent=current.name;$('code').textContent=code;$('change').textContent='데이터 조회 중…';$('status').textContent='네이버 증권 데이터 조회 중…';$('query').value=current.name;$('results').hidden=true;$('chart').innerHTML='<div class="chart-empty">분기 재무 데이터 조회 중…</div>';try{const flowKrxPromise=Promise.race([fetchFlowHistory(code,'KRX'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const flowNxtPromise=Promise.race([fetchFlowHistory(code,'NXT'),new Promise(resolve=>setTimeout(()=>resolve(null),2800))]);const floatSharesPromise=Promise.race([loadFloatingSharesFromCompany(code).catch(()=>null),new Promise(resolve=>setTimeout(()=>resolve(null),2200))]);const pricePromise=loadDailyPrices120(code,raw=>{if(id!==seq)return;renderDailyChart(raw,'day')});pricePromise.then(raw=>{if(id!==seq)return;dailyChartCache.set(code+'-day',raw);renderDailyChart(raw,'day');loadChartPeriod('day')}).catch(()=>{});const results=await Promise.allSettled([
 first([`${API}/api/stock/${code}/basic`]),
 first([`${API}/api/stock/${code}/integration`]),
 first([`${API}/api/stock/${code}/finance/quarter`]),
