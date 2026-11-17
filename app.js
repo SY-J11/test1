@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -598,32 +598,52 @@ async function fetchTrendRates(code,fromDate){
   {name:'mcursor',kind:'cursor',url:c=>`${API}/front-api/stock/domestic/trend?code=${code}&exchangeType=KRX&size=50${c?`&cursor=${encodeURIComponent(c)}`:''}`}
  ];
  const get=async u=>{try{return await getJson(u)}catch{return null}};
- const minKey=()=>out.size?[...out.keys()].reduce((a,b)=>a<b?a:b):'99999999';
+ const minKey=()=>{let min='99999999';for(const d of out.keys())if(d<min)min=d;return min};
  const addAll=m=>{let n=0;for(const [d,r] of m)if(!out.has(d)){out.set(d,r);n++}return n};
- const order=trendVariant.name?[...variants.filter(v=>v.name===trendVariant.name),...variants.filter(v=>v.name!==trendVariant.name)]:variants;
- for(const v of order){
-  const p0=await get(v.kind==='cursor'?v.url(''):v.url(0,size));const m0=parseForeignTrend(p0);
-  if(!m0.size)continue;
-  const step=m0.size;
-  if(v.kind==='cursor'){
-   let cursor=trendNextCursor(p0);if(!cursor){addAll(m0);continue}
-   const p1=await get(v.url(cursor));const m1=parseForeignTrend(p1);
-   if(![...m1.keys()].some(d=>!m0.has(d))){addAll(m0);continue}
-   trendVariant.name=v.name;addAll(m0);addAll(m1);cursor=trendNextCursor(p1);
-   const seen=new Set([cursor]);
-   for(let i=0;i<150&&cursor&&minKey()>fromDate;i++){const p=await get(v.url(cursor));const added=addAll(parseForeignTrend(p));const next=trendNextCursor(p);if(!added||!next||seen.has(next)){ended=true;break}seen.add(next);cursor=next}
-   if(!cursor)ended=true;
-   return {map:out,ended};
+ const byName=name=>variants.find(v=>v.name===name);
+ // 이전에 정상 동작한 API 방식이 있으면 그것부터 단독 확인해 탐색 요청을 최소화한다.
+ const preferred=byName(trendVariant.name);
+ const pageCandidates=preferred?.kind==='page'?[preferred]:variants.filter(v=>v.kind==='page');
+ const probePages=async candidates=>{
+  // 독립적인 첫 페이지 요청을 동시에 보내 API 방식 탐색에 걸리는 왕복 시간을 줄인다.
+  const firstPages=await Promise.all(candidates.map(async v=>({v,p:await get(v.url(0,size))})));
+  const valid=firstPages.map(x=>({...x,m:parseForeignTrend(x.p)})).filter(x=>x.m.size);
+  if(!valid.length)return false;
+  const secondPages=await Promise.all(valid.map(async x=>({...x,p2:await get(x.v.url(1,x.m.size))})));
+  for(const x of secondPages){
+   const m2=parseForeignTrend(x.p2);
+   if(![...m2.keys()].some(d=>!x.m.has(d)))continue;
+   trendVariant.name=x.v.name;addAll(x.m);addAll(m2);
+   let n=2;
+   for(let guard=0;guard<80&&minKey()>fromDate;guard+=8){
+    const batch=await Promise.all(Array.from({length:8},(_,i)=>get(x.v.url(n+i,x.m.size))));n+=8;
+    let added=0;for(const body of batch)added+=addAll(parseForeignTrend(body));
+    if(!added){ended=true;break}
+   }
+   return true;
   }
-  const p1=await get(v.url(1,step));const m1=parseForeignTrend(p1);
+  // 페이지 방식의 첫 응답은 유효하지만 다음 페이지가 없으면 첫 페이지 자료만 보존하고 다른 방식을 시도한다.
+  for(const x of valid)addAll(x.m);
+  return false;
+ };
+ if(await probePages(pageCandidates))return {map:out,ended};
+ if(!preferred||preferred.kind!=='page'){
+  const rest=variants.filter(v=>v.kind==='page'&&!pageCandidates.includes(v));
+  if(rest.length&&await probePages(rest))return {map:out,ended};
+ }
+ const cursorCandidates=preferred?.kind==='cursor'?[preferred]:variants.filter(v=>v.kind==='cursor');
+ for(const v of cursorCandidates){
+  const p0=await get(v.url(''));const m0=parseForeignTrend(p0);if(!m0.size)continue;
+  const cursor=trendNextCursor(p0);if(!cursor){addAll(m0);continue}
+  const p1=await get(v.url(cursor));const m1=parseForeignTrend(p1);
   if(![...m1.keys()].some(d=>!m0.has(d))){addAll(m0);continue}
-  trendVariant.name=v.name;addAll(m0);addAll(m1);
-  let n=2;
-  for(let guard=0;guard<80&&minKey()>fromDate;guard++){
-   const batch=await Promise.all(Array.from({length:8},(_,i)=>get(v.url(n+i,step))));n+=8;
-   let added=0;for(const b of batch)added+=addAll(parseForeignTrend(b));
-   if(!added){ended=true;break}
+  trendVariant.name=v.name;addAll(m0);addAll(m1);let next=trendNextCursor(p1);const seen=new Set([cursor,next]);
+  for(let i=0;i<150&&next&&minKey()>fromDate;i++){
+   const body=await get(v.url(next));const added=addAll(parseForeignTrend(body));const following=trendNextCursor(body);
+   if(!added||!following||seen.has(following)){ended=true;break}
+   seen.add(following);next=following;
   }
+  if(!next)ended=true;
   return {map:out,ended};
  }
  return {map:out,ended:false};
