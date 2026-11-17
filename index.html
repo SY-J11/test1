@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=120">
+<meta name="theme-color" content="#f4f6fa"><title>STOCK INSIGHT PRO</title><link rel="stylesheet" href="style.css?v=121">
   <link rel="apple-touch-icon" href="./Stock.png">
 </head>
 <body><div class="app">
@@ -26,6 +26,15 @@
 <section class="card quote"><div class="name"><div><span id="name">종목을 검색하세요</span><small id="code"></small></div><button id="fav">☆</button></div><div class="price" id="price">— <span id="change">종목을 선택하면 시세가 표시됩니다.</span></div></section>
 <section class="card daily-chart-card"><div class="daily-chart-heading"><b id="dailyChartTitle">120일봉 차트</b><span id="dailyChartRange">최근 거래일</span></div><div class="daily-chart-tabs" role="tablist" aria-label="차트 기간"><button type="button" class="active" data-period="day" role="tab" aria-selected="true">일</button><button type="button" data-period="week" role="tab" aria-selected="false">주</button><button type="button" data-period="month" role="tab" aria-selected="false">월</button><button type="button" data-period="year" role="tab" aria-selected="false">년</button></div><div id="dailyRangeTabs" class="daily-range-tabs" aria-label="조회 기간"></div><div id="dailyChart" class="daily-chart"><div class="chart-empty">종목을 검색하면 일봉 차트가 표시됩니다.</div></div></section>
 <section class="grid g4"><div class="metric"><label>PER</label><b id="per">—</b></div><div class="metric"><label>PBR</label><b id="pbr">—</b></div><div class="metric"><label>EPS</label><b id="eps">—</b></div><div class="metric"><label>시가총액</label><b id="cap">—</b></div></section>
+<details class="card dart-per-share-details" id="dartPerShareDetails" hidden>
+  <summary>주당지표 및 가치 분석 <span class="dart-per-share-arrow" aria-hidden="true">⌄</span></summary>
+  <div class="dart-fundamental-section"><h4>06 · 주당지표 및 가치평가</h4><div class="dart-fundamental-chart-grid">
+    <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"></div></article>
+    <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"></div></article>
+    <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"></div></article>
+  </div></div>
+  <div class="dart-fundamental-data-tables"><h4>재무 데이터 요약표</h4><section class="dart-fundamental-table-group"><h5>06 · 주당지표 및 가치 분석</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>EV/EBITDA(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsValuation"><tr><td colspan="9">조회 대기 중</td></tr></tbody></table></div></section></div>
+</details>
 <section class="grid g3"><div class="metric"><label>지난해 영업이익</label><b id="annualOp">—</b></div><div class="metric"><label>최근 4Q 영업이익</label><b id="ttmOp">—</b></div><div class="metric"><label>최근 4Q 순이익 (순이익률)</label><b id="ttmNet">—</b></div></section>
 <section class="card eps"><label>최근 6분기 EPS</label><div class="epsrow" id="epsRows"></div></section>
 <section class="grid g3"><div class="metric"><label>최근 ROE</label><b id="roe">—</b></div><div class="metric"><label>부채비율</label><b id="debt">—</b></div><div class="metric"><label>외국인소진율</label><b id="foreignFloat">—</b></div></section>
@@ -88,11 +97,6 @@
       <article class="dart-fundamental-chart-card"><b>영업현금흐름 / 순이익</b><small>회계상 이익의 현금 전환 품질 · %</small><div id="dartFundChartCashEarnings" class="dart-line-chart"></div></article>
       <article class="dart-fundamental-chart-card"><b>매출 성장률 + 영업이익 성장률</b><small>전년 동기 대비 성장률 · %</small><div id="dartFundChartGrowth" class="dart-line-chart"></div></article>
     </div></div>
-    <div class="dart-fundamental-section"><h4>06 · 주당지표 및 가치평가</h4><div class="dart-fundamental-chart-grid">
-      <article class="dart-fundamental-chart-card"><b>EPS · BPS · SPS</b><small>주당순이익 · 주당순자산 · 주당매출액 · 원</small><div id="dartFundChartPerShare" class="dart-line-chart"></div></article>
-      <article class="dart-fundamental-chart-card"><b>PER · PBR · PSR</b><small>주가 대비 이익 · 순자산 · 매출 배수</small><div id="dartFundChartMultiples" class="dart-line-chart"></div></article>
-      <article class="dart-fundamental-chart-card"><b>EV / EBITDA</b><small>네이버증권 투자지표 원본 · 배</small><div id="dartFundChartEvEbitda" class="dart-line-chart"></div></article>
-    </div></div>
     <div class="dart-fundamental-data-tables">
       <h4>재무 데이터 요약표</h4>
       <section class="dart-fundamental-table-group"><h5>01 · 현금흐름 및 투자</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>영업현금흐름</th><th>CAPEX</th><th>CAPEX/감가상각비</th><th>FCF</th></tr></thead><tbody id="dartFundamentalRowsCash"><tr><td colspan="5">조회 대기 중</td></tr></tbody></table></div></section>
@@ -100,7 +104,6 @@
       <section class="dart-fundamental-table-group"><h5>03 · 재무 건전성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>순차입금</th><th>순차입금/EBITDA</th><th>부채비율</th><th>유동비율</th><th>당좌비율</th><th>이자보상배율</th></tr></thead><tbody id="dartFundamentalRowsDebt"><tr><td colspan="7">조회 대기 중</td></tr></tbody></table></div></section>
       <section class="dart-fundamental-table-group"><h5>04 · 영업 효율성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>재고자산 회전율</th><th>매출채권 회전율</th></tr></thead><tbody id="dartFundamentalRowsActivity"><tr><td colspan="3">조회 대기 중</td></tr></tbody></table></div></section>
       <section class="dart-fundamental-table-group"><h5>05 · 현금흐름 품질 및 성장성</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>OCF/순이익</th><th>매출 성장률</th><th>영업이익 성장률</th></tr></thead><tbody id="dartFundamentalRowsGrowth"><tr><td colspan="4">조회 대기 중</td></tr></tbody></table></div></section>
-      <section class="dart-fundamental-table-group"><h5>06 · 주당지표 및 가치 분석</h5><div class="dart-fundamental-table-wrap"><table class="dart-fundamental-table"><thead><tr><th>기간</th><th>EPS(원)</th><th>BPS(원)</th><th>SPS(원)</th><th>PER(배)</th><th>PBR(배)</th><th>PSR(배)</th><th>EV/EBITDA(배)</th><th>자료 출처</th></tr></thead><tbody id="dartFundamentalRowsValuation"><tr><td colspan="9">조회 대기 중</td></tr></tbody></table></div></section>
     </div>
     <p class="dart-financial-note">연결재무제표 우선 · 금액 단위 억 원. FCF = 영업활동현금흐름 − CAPEX. ROIC·재고자산 회전율·매출채권 회전율은 평균 잔액 기준입니다. 분기 회전율·ROIC는 연환산하며, 성장률은 전년 동기 대비입니다. — 표시는 원천 계정 미공시, 계정명 차이, 전기 비교자료 부족 또는 계산에 필요한 입력값 부족을 의미합니다.</p>
   </div>
