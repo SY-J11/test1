@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -1333,15 +1333,12 @@ let naverInvestmentInFlightCode='';
 function renderNaverInvestment(data){
  naverInvestmentCache=data;
  const sourceRows=(naverInvestmentPeriod==='annual'?(data.investmentAnnual||[]):(data.investmentQuarterly||[])).slice(naverInvestmentPeriod==='annual'?-4:-6);
- // EV는 별도 시가총액 자료가 아닌 EV/EBITDA 원본 배수로 계산한 추정 기업가치.
- // 연간은 해당 연도 EBITDA, 분기는 해당 분기 EBITDA를 4배 연환산해 계산합니다.
+ // EV는 WiseReport 원본의 'EV＜당기＞' 행에서 직접 가져옵니다.
  const rows=sourceRows.map(r=>{
   const hasValue=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
   const ebitda=hasValue(r.ebitda)?Number(r.ebitda):null,revenueRaw=r.revenueEok??r.revenue,revenue=hasValue(revenueRaw)?Number(revenueRaw):null;
   const ebitdaMargin=hasValue(r.ebitdaMargin)?Number(r.ebitdaMargin):(ebitda!==null&&revenue!==null&&revenue>0?ebitda/revenue*100:null);
-  const annualizedEbitda=ebitda!==null&&ebitda>0?(naverInvestmentPeriod==='annual'?ebitda:ebitda*4):null;
-  const multiple=hasValue(r.evEbitda)?Number(r.evEbitda):null;
-  const evEok=annualizedEbitda!==null&&multiple!==null?annualizedEbitda*multiple:null;
+  const evEok=hasValue(r.ev)?Number(r.ev):null;
   return {...r,ebitdaMargin,evEok};
  });
  dartFundamentalRenderBars('dartFundChartPerShare',rows,['eps','bps','sps'],['EPS(원)','BPS(원)','SPS(원)']);
