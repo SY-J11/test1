@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -963,23 +963,6 @@ function summarizeQuickResponse(root){
  }
  walk(root,"root",0);return rows.join("; ").slice(0,650)||`type=${typeof root}`;
 }
-function quickRankingValue(item,orderType){
- const keys=orderType==='marketSum'
-  ?['marketValue','marketCap','marketSum','marketCapitalization','marketCapital','marketValueText','marketCapValue','marketCapAmount']
-  :orderType==='priceTop'
-   ?['tradingValue','accAmount','priceTop','tradeValue','accumulatedTradingValue','dealAmount','amount']
-   :['tradingVolume','accQuant','quantTop','accumulatedTradingVolume','volume','tradeVolume','dealVolume'];
- const seen=new Set();
- function find(node,depth=0){
-  if(!node||typeof node!=='object'||depth>4||seen.has(node))return null;seen.add(node);
-  for(const key of keys){const value=node[key];if(value===undefined||value===null)continue;const n=num(value?.value??value?.amount??value?.rawValue??value?.formattedValue??value);if(n!==null)return n;}
-  for(const value of Object.values(node)){const n=find(value,depth+1);if(n!==null)return n;}
-  return null;
- }
- return find(item);
-}
-// 네이버 '실시간 랭킹 > 시가총액' 화면에서 사용하는 국내 종목 목록 API를 Worker를 통해 직접 조회한다.
-// 공용 getJson의 외부 CORS 프록시 fallback은 최종 'Failed to fetch'가 앞선 실제 오류를 덮을 수 있어 여기서는 사용하지 않는다.
 async function getQuickRankingJson(url,force=false){
  const proxy=`${PROXY_BASE}?url=${encodeURIComponent(url)}`;
  let response;
@@ -993,80 +976,21 @@ async function getQuickRankingJson(url,force=false){
  }
  return data;
 }
-function collectQuickRankingRows(root,minimum=10,orderType='marketSum'){
- const codeKeys=['itemCode','itemcode','stockCode','stockcode','code','reutersCode','reuterscode','symbolCode','symbolcode','shortCode','shortcode','stock_code','isuCd','ISU_CD'];
- const nameKeys=['itemName','itemname','stockName','stockname','name','stockNm','stocknm','korName','korname','stockNmKr','stock_nm','isuNm','ISU_NM'];
- const readDeep=(obj,keys,depth=0)=>{
-  if(!obj||typeof obj!=='object'||depth>3)return null;
-  for(const k of keys)if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim())return obj[k];
-  for(const v of Object.values(obj))if(v&&typeof v==='object'&&!Array.isArray(v)){const found=readDeep(v,keys,depth+1);if(found!==null)return found;}
-  return null;
- };
- const visited=new Set();
- function walk(node,depth=0){
-  if(!node||typeof node!=='object'||depth>9||visited.has(node))return null;
-  visited.add(node);
-  if(Array.isArray(node)){
-   const parsed=[],seen=new Set();
-   for(const item of node){
-    if(!item||typeof item!=='object'||Array.isArray(item))continue;
-    const rawCode=readDeep(item,codeKeys),rawName=readDeep(item,nameKeys);
-    let code=rawCode===null?'':String(rawCode).trim().toUpperCase().replace(/^A(?=\d{6}$)/,'');
-    code=code.replace(/\.KS$|\.KQ$/,'');
-    const name=rawName===null?'':String(rawName).trim();
-    if(/^[0-9A-Z]{6}$/.test(code)&&name&&!seen.has(code)){seen.add(code);parsed.push({name,code,cap:capToEok(item.marketValue??item.marketCap??item.marketSum??item.marketCapitalization??item.marketValueText),rankValue:quickRankingValue(item,orderType),capSource:'rankingApi'});}
-   }
-   if(parsed.length>=minimum)return parsed;
-   // 배열 자체가 종목 목록이 아닌 wrapper이면 하위 배열을 개별 탐색한다.
-   for(const item of node){const found=walk(item,depth+1);if(found&&found.length>=minimum)return found;}
-   return null;
-  }
-  const preferred=['items','stocks','stockList','stocklist','result','data','list','contents','rankings','rankingList','domesticStocks','stockItems'];
-  for(const key of preferred){const v=node[key];if(v&&typeof v==='object'){const found=walk(v,depth+1);if(found&&found.length>=minimum)return found;}}
-  for(const [key,v] of Object.entries(node)){if(preferred.includes(key)||!v||typeof v!=='object')continue;const found=walk(v,depth+1);if(found&&found.length>=minimum)return found;}
-  return null;
- }
- return walk(root)||[];
-}
 async function loadQuickRanking(config,force=false){
  const box=$(config.id);if(!box)return;
  box.innerHTML='<span class="quick-loading">불러오는 중…</span>';
  try{
+  // 네이버 국내 실시간 랭킹 페이지의 PC API를 사용한다.
+  // marketType=ALL은 네이버 서버가 전체 시장을 직접 정렬하므로
+  // 코스피·코스닥을 따로 받아 클라이언트에서 임의 합산하지 않는다.
   const pageSize=100;
-  // PC 랭킹 endpoint가 404를 반환하는 환경이 있어, 네이버 모바일 종목목록 API를 사용한다.
-  // 전체는 코스피·코스닥을 각각 조회한 뒤 선택한 정렬값으로 합쳐 실제 전체 순위를 만든다.
-  const categories=config.marketType==='ALL'?['KOSPI','KOSDAQ']:[config.marketType];
-  const sortType=config.orderType==='marketSum'?'marketValue':config.orderType;
-  const requests=categories.map(async category=>{
-   const url=`https://m.stock.naver.com/front-api/stock/domestic/stockList?category=${encodeURIComponent(category)}&sortType=${encodeURIComponent(sortType)}&page=1&pageSize=${pageSize}`;
-   if(force){jsonMemoryCache.delete(url);jsonInFlight.delete(url)}
-   const data=await getQuickRankingJson(url,force);
-   let rows=collectQuickRankingRows(data,config.limit||10,config.orderType);
-   if(rows.length<(config.limit||10))rows=collectQuickStocksAllLists(data);
-   if(rows.length<(config.limit||10))throw Error(`${category} 응답에서 종목 ${config.limit||10}개 중 ${rows.length}개만 확인했습니다. ${summarizeQuickResponse(data)}`);
-   return rows;
-  });
-  const groups=await Promise.all(requests);
-  let ranked=groups.flat();
-  const uniqueByCode=new Map();
-  for(const item of ranked)if(!uniqueByCode.has(item.code))uniqueByCode.set(item.code,item);
-  ranked=[...uniqueByCode.values()];
-  const valueKey=config.orderType;
-  const metricKeys=valueKey==='marketSum'
-   ?['marketValue','marketSum','marketCap','marketCapitalization','marketValueText','marketCapValue']
-   :valueKey==='priceTop'
-    ?['tradingValue','accAmount','priceTop','tradeValue','accumulatedTradingValue','dealAmount','amount']
-    :['tradingVolume','accQuant','quantTop','accumulatedTradingVolume','volume','tradeVolume','dealVolume'];
-  const metricOf=item=>{
-   if(item?.rankValue!==undefined&&item.rankValue!==null)return num(item.rankValue);
-   if(valueKey==='marketSum'&&item?.cap!==undefined&&item.cap!==null)return num(item.cap);
-   for(const key of metricKeys){const v=item?.[key];const n=num(v?.value??v?.amount??v?.rawValue??v);if(n!==null)return n;}
-   return null;
-  };
-  // 각 시장별 API는 이미 내림차순이지만 전체 순위는 두 시장을 합쳐 지표값으로 다시 정렬한다.
-  if(config.marketType==='ALL')ranked.sort((a,b)=>(metricOf(b)??-Infinity)-(metricOf(a)??-Infinity));
+  const url=`${DESKTOP}/api/domestic/market/stock/default?tradeType=KRX&marketType=${encodeURIComponent(config.marketType)}&orderType=${encodeURIComponent(config.orderType)}&startIdx=0&pageSize=${pageSize}`;
+  const data=await getQuickRankingJson(url,force);
+  const ranked=collectQuickStocksAllLists(data);
   const required=config.limit||10;
-  if(ranked.length<required)throw Error(`네이버 모바일 랭킹에서 종목 ${required}개 중 ${ranked.length}개만 확인했습니다.`);
+  if(ranked.length<required){
+   throw Error(`네이버 응답에서 종목 ${required}개 중 ${ranked.length}개만 확인했습니다. 응답 구조: ${summarizeQuickResponse(data)}`);
+  }
   const unique=ranked.slice(0,required);
   box.innerHTML=unique.map((x,i)=>`<button data-code="${x.code}" data-name="${escapeHtml(x.name)}" title="${escapeHtml(config.label)} ${i+1}위"><small>${i+1}</small>${escapeHtml(x.name)}</button>`).join('');
   box.querySelectorAll('button').forEach(b=>b.onclick=()=>load(b.dataset.code,b.dataset.name));
