@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -972,42 +972,78 @@ function quickRankingValue(item,orderType){
  for(const key of keys){const value=item?.[key];const n=num(value);if(n!==null)return n;if(value&&typeof value==='object'){const nested=num(value.value??value.amount??value.rawValue??value.formattedValue);if(nested!==null)return nested}}
  return null;
 }
-async function loadQuickRankingFromMobile(config){
- const categories=config.marketType==='ALL'?['KOSPI','KOSDAQ']:[config.marketType];
- const size=100;
- const mobileSort=config.orderType==='marketSum'?'marketValue':config.orderType;
- const responses=await Promise.all(categories.map(category=>getJson(`${API}/front-api/stock/domestic/stockList?sortType=${encodeURIComponent(mobileSort)}&category=${encodeURIComponent(category)}&page=1&pageSize=${size}`)));
- let merged=[];
- for(const response of responses){const list=collectQuickStocksAllLists(response);if(list.length<(config.marketType==='ALL'?10:config.limit||10))throw Error(`모바일 대체 목록 종목 추출 실패: ${summarizeQuickResponse(response)}`);merged.push(...list)}
- const rawItems=[];const visited=new Set();
- function walk(v,d=0){if(!v||typeof v!=='object'||d>8)return;if(Array.isArray(v)){for(const x of v)walk(x,d+1);return}const code=v.itemCode??v.itemcode??v.stockCode??v.stockcode??v.code;if(code!==undefined&&/^[0-9A-Z]{6}$/i.test(String(code).replace(/^A/i,'')))rawItems.push(v);for(const x of Object.values(v))if(x&&typeof x==='object')walk(x,d+1)}
- responses.forEach(walk);
- const byCode=new Map(rawItems.map(x=>[String(x.itemCode??x.itemcode??x.stockCode??x.stockcode??x.code).replace(/^A/i,'').toUpperCase(),x]));
- merged=merged.map(x=>({...x,_rankValue:quickRankingValue(byCode.get(x.code),config.orderType)}));
- if(config.marketType==='ALL'){
-  if(merged.some(x=>x._rankValue===null))throw Error('전체 순위 통합에 필요한 거래대금/거래량/시가총액 값이 응답에 없습니다.');
-  merged.sort((a,b)=>b._rankValue-a._rankValue);
+// 네이버 '실시간 랭킹 > 시가총액' 화면에서 사용하는 국내 종목 목록 API를 Worker를 통해 직접 조회한다.
+// 공용 getJson의 외부 CORS 프록시 fallback은 최종 'Failed to fetch'가 앞선 실제 오류를 덮을 수 있어 여기서는 사용하지 않는다.
+async function getQuickRankingJson(url,force=false){
+ const proxy=`${PROXY_BASE}?url=${encodeURIComponent(url)}`;
+ let response;
+ try{response=await fetchTimed(proxy,{cache:'no-store',headers:{Accept:'application/json'}},12000)}
+ catch(e){throw Error(`Cloudflare Worker 연결 실패: ${String(e?.message||e)}`)}
+ const body=await response.text();
+ let data=null;try{data=JSON.parse(body)}catch{throw Error(`랭킹 API가 JSON이 아닌 응답을 반환했습니다 (HTTP ${response.status}): ${body.slice(0,160)}`)}
+ if(!response.ok||data?.error){
+  const detail=data?.detail||data?.message||data?.error||body.slice(0,160);
+  throw Error(`네이버 랭킹 API 요청 실패 (HTTP ${response.status}): ${String(detail).slice(0,180)}`);
  }
- return merged;
+ return data;
+}
+function collectQuickRankingRows(root,minimum=10){
+ const codeKeys=['itemCode','itemcode','stockCode','stockcode','code','reutersCode','reuterscode','symbolCode','symbolcode','shortCode','shortcode','stock_code','isuCd','ISU_CD'];
+ const nameKeys=['itemName','itemname','stockName','stockname','name','stockNm','stocknm','korName','korname','stockNmKr','stock_nm','isuNm','ISU_NM'];
+ const readDeep=(obj,keys,depth=0)=>{
+  if(!obj||typeof obj!=='object'||depth>3)return null;
+  for(const k of keys)if(obj[k]!==undefined&&obj[k]!==null&&String(obj[k]).trim())return obj[k];
+  for(const v of Object.values(obj))if(v&&typeof v==='object'&&!Array.isArray(v)){const found=readDeep(v,keys,depth+1);if(found!==null)return found;}
+  return null;
+ };
+ const visited=new Set();
+ function walk(node,depth=0){
+  if(!node||typeof node!=='object'||depth>9||visited.has(node))return null;
+  visited.add(node);
+  if(Array.isArray(node)){
+   const parsed=[],seen=new Set();
+   for(const item of node){
+    if(!item||typeof item!=='object'||Array.isArray(item))continue;
+    const rawCode=readDeep(item,codeKeys),rawName=readDeep(item,nameKeys);
+    let code=rawCode===null?'':String(rawCode).trim().toUpperCase().replace(/^A(?=\d{6}$)/,'');
+    code=code.replace(/\.KS$|\.KQ$/,'');
+    const name=rawName===null?'':String(rawName).trim();
+    if(/^[0-9A-Z]{6}$/.test(code)&&name&&!seen.has(code)){seen.add(code);parsed.push({name,code,cap:capToEok(item.marketValue??item.marketCap??item.marketSum??item.marketCapitalization??item.marketValueText),capSource:'rankingApi'});}
+   }
+   if(parsed.length>=minimum)return parsed;
+   // 배열 자체가 종목 목록이 아닌 wrapper이면 하위 배열을 개별 탐색한다.
+   for(const item of node){const found=walk(item,depth+1);if(found&&found.length>=minimum)return found;}
+   return null;
+  }
+  const preferred=['items','stocks','stockList','stocklist','result','data','list','contents','rankings','rankingList','domesticStocks','stockItems'];
+  for(const key of preferred){const v=node[key];if(v&&typeof v==='object'){const found=walk(v,depth+1);if(found&&found.length>=minimum)return found;}}
+  for(const [key,v] of Object.entries(node)){if(preferred.includes(key)||!v||typeof v!=='object')continue;const found=walk(v,depth+1);if(found&&found.length>=minimum)return found;}
+  return null;
+ }
+ return walk(root)||[];
 }
 async function loadQuickRanking(config,force=false){
  const box=$(config.id);if(!box)return;
  box.innerHTML='<span class="quick-loading">불러오는 중…</span>';
  try{
   const pageSize=100;
+  // 네이버 실시간 랭킹 화면의 시가총액/거래대금/거래량 정렬과 동일한 API 및 시장 구분 사용
   const url=`${DESKTOP}/api/domestic/market/stock/default?tradeType=KRX&marketType=${encodeURIComponent(config.marketType)}&orderType=${encodeURIComponent(config.orderType)}&startIdx=0&pageSize=${pageSize}`;
-  if(force){jsonMemoryCache.delete(url);jsonInFlight.delete(url);}
-  let data,ranked,primaryError=null;
-  try{data=await getJson(url);ranked=collectQuickStocksAllLists(data);if(ranked.length<(config.limit||10))ranked=collectQuickStocks(data,[],new Set());if(ranked.length<(config.limit||10))throw Error(`desktop 응답 종목 부족: ${summarizeQuickResponse(data)}`)}
-  catch(e){primaryError=e;ranked=await loadQuickRankingFromMobile(config)}
-  const required=config.limit||10;if(ranked.length<required)throw Error(`종목 ${required}개 중 ${ranked.length}개 추출`);
-  const unique=ranked.slice(0,required);
+  if(force){jsonMemoryCache.delete(url);jsonInFlight.delete(url)}
+  const data=await getQuickRankingJson(url,force);
+  let ranked=collectQuickStocksAllLists(data);
+  if(ranked.length<(config.limit||10))ranked=collectQuickRankingRows(data,config.limit||10);
+  const required=config.limit||10;
+  if(ranked.length<required)throw Error(`네이버 응답에서 종목 ${required}개 중 ${ranked.length}개만 확인했습니다. 응답 구조: ${summarizeQuickResponse(data)}`);
+  const unique=[],seen=new Set();
+  for(const item of ranked){if(!seen.has(item.code)){seen.add(item.code);unique.push(item)}if(unique.length>=required)break;}
+  if(unique.length<required)throw Error(`중복 제거 후 종목 ${required}개 중 ${unique.length}개만 확인했습니다.`);
   box.innerHTML=unique.map((x,i)=>`<button data-code="${x.code}" data-name="${escapeHtml(x.name)}" title="${escapeHtml(config.label)} ${i+1}위"><small>${i+1}</small>${escapeHtml(x.name)}</button>`).join('');
   box.querySelectorAll('button').forEach(b=>b.onclick=()=>load(b.dataset.code,b.dataset.name));
  }catch(e){
-  const message=String(e?.message||primaryError?.message||'조회 실패');
-  box.innerHTML=`<span class="quick-loading">순위를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br><small>${escapeHtml(message.slice(0,130))}</small></span>`;
-  console.warn(`${config.label} 순위 조회 실패:`,primaryError||e);
+  const message=String(e?.message||'조회 실패');
+  box.innerHTML=`<span class="quick-loading">순위를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br><small>${escapeHtml(message.slice(0,220))}</small></span>`;
+  console.warn(`${config.label} 순위 조회 실패:`,e);
  }
 }
 function loadQuickRankings(force=false){return Promise.allSettled(QUICK_RANKINGS.map(config=>loadQuickRanking(config,force)));}
