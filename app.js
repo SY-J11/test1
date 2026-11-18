@@ -1,6 +1,6 @@
 const API='https://m.stock.naver.com';
 const DESKTOP='https://stock.naver.com';
-const PROXY_BASE='https://tdart.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://stock-insight-proxy.mcraft-tiger-574.workers.dev';
 const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'005935'},{name:'SK하이닉스',code:'000660'},{name:'한미반도체',code:'042700'},{name:'두산에너빌리티',code:'034020'},{name:'두산',code:'000150'},{name:'현대차',code:'005380'},{name:'기아',code:'000270'},{name:'LG에너지솔루션',code:'373220'},{name:'삼성SDI',code:'006400'},{name:'NAVER',code:'035420'},{name:'카카오',code:'035720'},{name:'제주반도체',code:'080220'},{name:'대원전선',code:'006340'},{name:'대덕전자',code:'353200'}];
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
@@ -963,7 +963,7 @@ function summarizeQuickResponse(root){
  }
  walk(root,"root",0);return rows.join("; ").slice(0,650)||`type=${typeof root}`;
 }
-async function loadQuickRanking(config){
+async function loadQuickRanking(config,force=false){
  const box=$(config.id);if(!box)return;
  box.innerHTML='<span class="quick-loading">불러오는 중…</span>';
  try{
@@ -971,10 +971,12 @@ async function loadQuickRanking(config){
   // 네이버 화면 /market/stock/kr/stocklist/priceTop에서 사용하는 시장 랭킹 API와 같은 경로.
   // v3 individual-stocks 목록은 화면의 '전체 + 거래대금 상위'와 일치한다고 확인되지 않아 사용하지 않는다.
   const marketType=config.marketType;
-  const pageSize=config.pageSize||100;
+  const pageSize=config.pageSize||config.limit||20;
   const url=`${DESKTOP}/api/domestic/market/stock/default?tradeType=KRX&marketType=${encodeURIComponent(marketType)}&orderType=${encodeURIComponent(config.orderType)}&startIdx=0&pageSize=${pageSize}`;
+  if(force){jsonMemoryCache.delete(url);jsonInFlight.delete(url);}
   data=await getJson(url);
   ranked=collectQuickStocksAllLists(data);
+  if(ranked.length<(config.limit||10))ranked=collectQuickStocks(data,[],new Set());
   const required=config.limit||10;if(ranked.length<required){const diag=`종목 ${required}개 중 ${ranked.length}개 추출. 응답 구조: ${summarizeQuickResponse(data)}`;throw Error(diag)}
   const unique=ranked.slice(0,config.limit||10);
   box.innerHTML=unique.map((x,i)=>`<button data-code="${x.code}" data-name="${escapeHtml(x.name)}" title="${escapeHtml(config.label)} ${i+1}위"><small>${i+1}</small>${escapeHtml(x.name)}</button>`).join('');
@@ -984,7 +986,7 @@ async function loadQuickRanking(config){
   console.warn(`${config.label} 순위 조회 실패:`,e);
  }
 }
-function loadQuickRankings(){QUICK_RANKINGS.forEach(config=>loadQuickRanking(config))}
+function loadQuickRankings(force=false){return Promise.allSettled(QUICK_RANKINGS.map(config=>loadQuickRanking(config,force)));}
 loadQuickRankings();
 // DART 공시 프레임: PC에서는 가운데 정렬, 모바일에서는 폭에 맞춰 전체 프레임 표시
 (function setupDartFrame(){
@@ -1005,7 +1007,7 @@ loadQuickRankings();
  window.addEventListener('resize',()=>{if(!modal.hidden)resize()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!modal.hidden)shut()});
 })();
-$('name').textContent='종목을 검색하세요';$('code').textContent='';$('price').innerHTML='— <span id="change">종목을 선택하면 시세가 표시됩니다.</span>';$('status').textContent='';$('query').value='';$('refresh').onclick=()=>{if(current.code)load(current.code,current.name,true)};
+$('name').textContent='종목을 검색하세요';$('code').textContent='';$('price').innerHTML='— <span id="change">종목을 선택하면 시세가 표시됩니다.</span>';$('status').textContent='';$('query').value='';$('refresh').onclick=()=>{if(current.code)load(current.code,current.name,true);loadQuickRankings(true)};
 $('dailyRangeTabs')?.addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;chartRangeSel[dailyChartPeriod]=Number(b.dataset.range);loadChartPeriod(dailyChartPeriod)});renderRangeTabs('day');
 
 // ===== 투자자 동향 그래프 (외국인 · 기관 · 개인 일별 순매수) =====
