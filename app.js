@@ -963,27 +963,51 @@ function summarizeQuickResponse(root){
  }
  walk(root,"root",0);return rows.join("; ").slice(0,650)||`type=${typeof root}`;
 }
+function quickRankingValue(item,orderType){
+ const keys=orderType==='marketSum'
+  ?['marketValue','marketCap','marketSum','marketCapitalization','marketCapital','marketValueText','marketCapValue','marketCapAmount']
+  :orderType==='priceTop'
+   ?['tradingValue','accAmount','priceTop','tradeValue','accumulatedTradingValue','dealAmount','amount']
+   :['tradingVolume','accQuant','quantTop','accumulatedTradingVolume','volume','tradeVolume','dealVolume'];
+ for(const key of keys){const value=item?.[key];const n=num(value);if(n!==null)return n;if(value&&typeof value==='object'){const nested=num(value.value??value.amount??value.rawValue??value.formattedValue);if(nested!==null)return nested}}
+ return null;
+}
+async function loadQuickRankingFromMobile(config){
+ const categories=config.marketType==='ALL'?['KOSPI','KOSDAQ']:[config.marketType];
+ const size=100;
+ const mobileSort=config.orderType==='marketSum'?'marketValue':config.orderType;
+ const responses=await Promise.all(categories.map(category=>getJson(`${API}/front-api/stock/domestic/stockList?sortType=${encodeURIComponent(mobileSort)}&category=${encodeURIComponent(category)}&page=1&pageSize=${size}`)));
+ let merged=[];
+ for(const response of responses){const list=collectQuickStocksAllLists(response);if(list.length<(config.marketType==='ALL'?10:config.limit||10))throw Error(`모바일 대체 목록 종목 추출 실패: ${summarizeQuickResponse(response)}`);merged.push(...list)}
+ const rawItems=[];const visited=new Set();
+ function walk(v,d=0){if(!v||typeof v!=='object'||d>8)return;if(Array.isArray(v)){for(const x of v)walk(x,d+1);return}const code=v.itemCode??v.itemcode??v.stockCode??v.stockcode??v.code;if(code!==undefined&&/^[0-9A-Z]{6}$/i.test(String(code).replace(/^A/i,'')))rawItems.push(v);for(const x of Object.values(v))if(x&&typeof x==='object')walk(x,d+1)}
+ responses.forEach(walk);
+ const byCode=new Map(rawItems.map(x=>[String(x.itemCode??x.itemcode??x.stockCode??x.stockcode??x.code).replace(/^A/i,'').toUpperCase(),x]));
+ merged=merged.map(x=>({...x,_rankValue:quickRankingValue(byCode.get(x.code),config.orderType)}));
+ if(config.marketType==='ALL'){
+  if(merged.some(x=>x._rankValue===null))throw Error('전체 순위 통합에 필요한 거래대금/거래량/시가총액 값이 응답에 없습니다.');
+  merged.sort((a,b)=>b._rankValue-a._rankValue);
+ }
+ return merged;
+}
 async function loadQuickRanking(config,force=false){
  const box=$(config.id);if(!box)return;
  box.innerHTML='<span class="quick-loading">불러오는 중…</span>';
  try{
-  let data,ranked;
-  // 네이버 화면 /market/stock/kr/stocklist/priceTop에서 사용하는 시장 랭킹 API와 같은 경로.
-  // v3 individual-stocks 목록은 화면의 '전체 + 거래대금 상위'와 일치한다고 확인되지 않아 사용하지 않는다.
-  const marketType=config.marketType;
-  const pageSize=config.pageSize||config.limit||20;
-  const url=`${DESKTOP}/api/domestic/market/stock/default?tradeType=KRX&marketType=${encodeURIComponent(marketType)}&orderType=${encodeURIComponent(config.orderType)}&startIdx=0&pageSize=${pageSize}`;
+  const pageSize=100;
+  const url=`${DESKTOP}/api/domestic/market/stock/default?tradeType=KRX&marketType=${encodeURIComponent(config.marketType)}&orderType=${encodeURIComponent(config.orderType)}&startIdx=0&pageSize=${pageSize}`;
   if(force){jsonMemoryCache.delete(url);jsonInFlight.delete(url);}
-  data=await getJson(url);
-  ranked=collectQuickStocksAllLists(data);
-  if(ranked.length<(config.limit||10))ranked=collectQuickStocks(data,[],new Set());
-  const required=config.limit||10;if(ranked.length<required){const diag=`종목 ${required}개 중 ${ranked.length}개 추출. 응답 구조: ${summarizeQuickResponse(data)}`;throw Error(diag)}
-  const unique=ranked.slice(0,config.limit||10);
+  let data,ranked,primaryError=null;
+  try{data=await getJson(url);ranked=collectQuickStocksAllLists(data);if(ranked.length<(config.limit||10))ranked=collectQuickStocks(data,[],new Set());if(ranked.length<(config.limit||10))throw Error(`desktop 응답 종목 부족: ${summarizeQuickResponse(data)}`)}
+  catch(e){primaryError=e;ranked=await loadQuickRankingFromMobile(config)}
+  const required=config.limit||10;if(ranked.length<required)throw Error(`종목 ${required}개 중 ${ranked.length}개 추출`);
+  const unique=ranked.slice(0,required);
   box.innerHTML=unique.map((x,i)=>`<button data-code="${x.code}" data-name="${escapeHtml(x.name)}" title="${escapeHtml(config.label)} ${i+1}위"><small>${i+1}</small>${escapeHtml(x.name)}</button>`).join('');
   box.querySelectorAll('button').forEach(b=>b.onclick=()=>load(b.dataset.code,b.dataset.name));
  }catch(e){
-  box.innerHTML=`<span class="quick-loading">순위를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br><small>${escapeHtml(String(e?.message||'조회 실패').slice(0,100))}</small></span>`;
-  console.warn(`${config.label} 순위 조회 실패:`,e);
+  const message=String(e?.message||primaryError?.message||'조회 실패');
+  box.innerHTML=`<span class="quick-loading">순위를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.<br><small>${escapeHtml(message.slice(0,130))}</small></span>`;
+  console.warn(`${config.label} 순위 조회 실패:`,primaryError||e);
  }
 }
 function loadQuickRankings(force=false){return Promise.allSettled(QUICK_RANKINGS.map(config=>loadQuickRanking(config,force)));}
