@@ -1,4 +1,4 @@
-const WORKER='https://std1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -455,28 +455,62 @@ function renderArchive(){
  if(topGainer&&topGainer.rate>0)trend.push(`<b>급등 종목</b> · ${escapeHtml(topGainer.name)} <span class="up">${pct(topGainer.rate)}</span>`);
  $('archive-trend-list').innerHTML=trend.map(x=>`<li>${x}</li>`).join('')||'<li>분석할 저장 종목이 없습니다.</li>';
  // 섹터 분석은 기본 5개만 표시하고, 나머지는 펼침으로 확인합니다.
+ const sectors=agg(rows).arr;
  $('archive-sector-total').textContent=sectors.length+'개 섹터';
  const shown=archiveSectorOpen?sectors:sectors.slice(0,5);
  $('archive-sector-list').innerHTML=sectors.length?'<table class="sec-t"><thead><tr><th>섹터</th><th>종목</th><th>비중</th><th>평균</th></tr></thead><tbody>'+shown.map(a=>`<tr><td><b>${escapeHtml(a.s)}</b></td><td class="num">${a.n}</td><td><div class="bar"><i style="width:${a.share}%"></i></div><small>${a.share.toFixed(1)}%</small></td><td class="rate ${cls3(a.avg)}">${pct(a.avg)}</td></tr>`).join('')+'</tbody></table>'+(sectors.length>5?`<button id="archive-sector-more" class="more">${archiveSectorOpen?'▲ 접기':'▼ 나머지 '+(sectors.length-5)+'개 섹터 펼치기'}</button>`:''):'<div class="empty">분석할 저장 종목이 없습니다.</div>';
 }
 async function loadArchiveDates(){
  const sel=$('archive-date'),status=$('archive-status');if(!sel)return;
- try{const r=await fetch(WORKER+'/?archive=dates',{cache:'no-store'});if(!r.ok)throw new Error('기록 서버 오류 ('+r.status+')');const j=await r.json();const dates=j.dates||[];sel.innerHTML=dates.length?dates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join(''):'<option value="">저장된 기록 없음</option>';status.textContent=dates.length?`총 ${dates.length}일의 종가 기록이 있습니다.`:(j.message||'아직 저장된 기록이 없습니다. Worker의 D1·Cron 설정을 확인해 주세요.');if(dates.length)await loadArchiveRows();}
- catch(e){sel.innerHTML='<option value="">기록 조회 실패</option>';status.textContent='기록 조회 실패: '+e.message+' · Worker에 D1 바인딩이 필요합니다.'}
+ const previous=sel.value;
+ try{
+  const r=await fetch(WORKER+'/?archive=dates',{cache:'no-store'});
+  if(!r.ok)throw new Error('기록 서버 오류 ('+r.status+')');
+  const j=await r.json(),dates=Array.isArray(j.dates)?j.dates:[];
+  sel.innerHTML=dates.length?dates.map(d=>`<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join(''):'<option value="">저장된 기록 없음</option>';
+  if(previous&&dates.includes(previous))sel.value=previous;
+  status.textContent=dates.length?`총 ${dates.length}일의 종가 기록이 있습니다. 날짜와 랭킹 항목을 선택한 뒤 조회를 눌러 주세요.`:(j.message||'아직 저장된 기록이 없습니다. Worker의 D1·Cron 설정을 확인해 주세요.');
+ }catch(e){sel.innerHTML='<option value="">기록 조회 실패</option>';status.textContent='기록 조회 실패: '+e.message+' · Worker에 D1 바인딩이 필요합니다.'}
 }
 async function loadArchiveRows(){
- const date=$('archive-date')?.value,kind=$('archive-kind')?.value,box=$('archive-rows');if(!date||!kind||!box)return;box.innerHTML='<div class="archive-empty">저장된 종가 데이터를 불러오는 중…</div>';
- try{const u=WORKER+'/?archive=1&date='+encodeURIComponent(date)+'&kind='+encodeURIComponent(kind)+'&marketType='+encodeURIComponent(archiveMarket);const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('데이터 요청 오류 ('+r.status+')');const j=await r.json();archivePayloadRows=getRows(j.payload||{}).slice(0,100);archivePayloadRows.forEach(x=>{if(!x.market)x.market=archiveMarket});archiveSectorOpen=false;renderArchive();if(!j.payload)$('archive-status').textContent='선택한 날짜에는 해당 시장 구분의 저장 기록이 없습니다. V25 Worker 배포 후 다음 자동 저장부터 전체·코스피·코스닥 기록이 각각 저장됩니다.';}
- catch(e){archivePayloadRows=[];box.innerHTML='<div class="archive-empty">기록을 불러오지 못했습니다.</div>'; $('archive-status').textContent='기록 조회 실패: '+e.message}
+ const date=$('archive-date')?.value,kind=$('archive-kind')?.value,box=$('archive-rows'),btn=$('archive-query');
+ if(!date||!kind||!box){$('archive-status').textContent='저장 날짜를 먼저 선택해 주세요.';return}
+ if(btn){btn.disabled=true;btn.textContent='조회 중…'}
+ box.innerHTML='<div class="archive-empty">저장 데이터를 불러오는 중입니다.</div>';
+ $('archive-trend-list').innerHTML='<li>저장 데이터를 불러오는 중입니다.</li>';
+ $('archive-sector-list').innerHTML='<div class="empty">저장 데이터를 불러오는 중입니다.</div>';
+ try{
+  const u=WORKER+'/?archive=1&date='+encodeURIComponent(date)+'&kind='+encodeURIComponent(kind)+'&marketType='+encodeURIComponent(archiveMarket);
+  const r=await fetch(u,{cache:'no-store'});
+  if(!r.ok){let detail='';try{const e=await r.json();detail=e.error?' · '+e.error:''}catch(_){}throw new Error('데이터 요청 오류 ('+r.status+')'+detail)}
+  const j=await r.json();
+  archivePayloadRows=getRows(j.payload||{}).slice(0,100);
+  archivePayloadRows.forEach(x=>{if(!x.market)x.market=archiveMarket});
+  archiveSectorOpen=false;
+  if(!j.payload){
+   renderArchive();
+   $('archive-status').textContent=`${date} · ${kind} · ${archiveMarket}: 해당 시장의 저장 기록이 없습니다. V27 Worker 배포 후 실행된 자동 저장부터 확인할 수 있습니다.`;
+  }else{
+   renderArchive();
+   $('archive-status').textContent=`${date} · ${kind} · ${archiveMarket} · ${archivePayloadRows.length}개 저장 데이터를 불러왔습니다.`;
+  }
+  const content=$('archive-content'),expand=$('archive-expand');
+  if(content?.hidden){content.hidden=false;expand?.setAttribute('aria-expanded','true');if(expand)expand.textContent='▲ 저장 기록 전체 접기'}
+ }catch(e){
+  archivePayloadRows=[];
+  box.innerHTML='<div class="archive-empty">기록을 불러오지 못했습니다. 조회 버튼을 다시 누르거나 Worker 상태를 확인해 주세요.</div>';
+  $('archive-trend-list').innerHTML='<li>기록을 불러오지 못했습니다.</li>';
+  $('archive-sector-list').innerHTML='<div class="empty">기록을 불러오지 못했습니다.</div>';
+  $('archive-status').textContent='기록 조회 실패: '+e.message;
+ }finally{if(btn){btn.disabled=false;btn.textContent='조회'}}
 }
 if($('archive-date')){
  $('archive-refresh').addEventListener('click',loadArchiveDates);
- $('archive-date').addEventListener('change',loadArchiveRows);
- $('archive-kind').addEventListener('change',loadArchiveRows);
+ $('archive-query').addEventListener('click',loadArchiveRows);
  $('archive-expand').addEventListener('click',()=>{const c=$('archive-content'),b=$('archive-expand'),open=c.hidden;c.hidden=!open;b.setAttribute('aria-expanded',String(open));b.textContent=open?'▲ 저장 기록 전체 접기':'▼ 저장 기록 전체 펼쳐보기';if(open)renderArchive()});
  $('archive-cnt-tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-archive-n]');if(!b)return;archiveN=+b.dataset.archiveN;$('archive-cnt-tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));renderArchive()});
  $('archive-etf-toggle').addEventListener('click',()=>{archiveEtf=!archiveEtf;const b=$('archive-etf-toggle');b.classList.toggle('on',archiveEtf);b.setAttribute('aria-pressed',String(archiveEtf));b.textContent=archiveEtf?'✓ ETF·ETN 제외 중 (누르면 포함)':'ETF·ETN 제외하기';renderArchive()});
- document.querySelectorAll('[data-archive-market]').forEach(b=>b.addEventListener('click',()=>{archiveMarket=b.dataset.archiveMarket;document.querySelectorAll('[data-archive-market]').forEach(x=>x.classList.toggle('selected',x.dataset.archiveMarket===archiveMarket));loadArchiveRows()}));
+ document.querySelectorAll('[data-archive-market]').forEach(b=>b.addEventListener('click',()=>{archiveMarket=b.dataset.archiveMarket;document.querySelectorAll('[data-archive-market]').forEach(x=>x.classList.toggle('selected',x.dataset.archiveMarket===archiveMarket));$('archive-status').textContent=`시장 구분을 ${archiveMarket}으로 선택했습니다. 조회 버튼을 눌러 데이터를 불러오세요.`}));
  document.querySelectorAll('[data-archive-sort]').forEach(b=>b.addEventListener('click',()=>{archiveSort=b.dataset.archiveSort;document.querySelectorAll('[data-archive-sort]').forEach(x=>x.classList.toggle('selected',x===b));renderArchive()}));
  document.addEventListener('click',e=>{if(e.target&&e.target.id==='archive-sector-more'){archiveSectorOpen=!archiveSectorOpen;renderArchive()}});
  loadArchiveDates();

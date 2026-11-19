@@ -105,3 +105,9 @@ html.dark .eyebrow{color:#7fa3cc}
 #archive-content[hidden]{display:none!important}
 html.dark .archive-market-top button{background:#202733;border-color:var(--line);color:#aab5c5}
 html.dark .archive-market-top button.selected{background:#2a3a52;border-color:#3b5278;color:#cfe0f7}
+
+/* v27: explicit archive query control */
+.archive-controls{grid-template-columns:auto minmax(100px,1fr) auto minmax(110px,1fr) auto}
+.archive-query{min-width:64px!important;font-weight:800!important;background:var(--accent-soft,#eaf2ff)!important;border-color:var(--accent,#8bb4e8)!important}
+.archive-query:disabled{opacity:.65;cursor:wait}
+@media(max-width:560px){.archive-controls{grid-template-columns:1fr 1fr auto;gap:7px}.archive-controls label{display:none}.archive-controls select{width:100%}.archive-query{grid-column:auto}}

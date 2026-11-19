@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f3f6fb"><title>국내 주식 랭킹 인사이트</title>
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 <script>try{if(localStorage.getItem("theme_v1")==="dark"){document.documentElement.classList.add("dark");document.querySelector('meta[name="theme-color"]').content="#151a22"}}catch(e){}</script>
 <link rel="apple-touch-icon" href="./Stock_r.png">
 </head>
@@ -38,7 +38,7 @@
 </section>
 <section class="sector-card archive-card" id="daily-archive">
  <div class="section-head"><div><h2>일별 종가 기록</h2><p>매일 한국시간 20:10 자동 저장 · 날짜별 11개 랭킹</p></div><button id="archive-refresh" type="button">기록 새로고침</button></div>
- <div class="archive-controls"><label for="archive-date">저장 날짜</label><select id="archive-date"><option value="">기록 확인 중…</option></select><label for="archive-kind">랭킹 항목</label><select id="archive-kind"><option value="priceTop">거래대금 상위</option><option value="quantTop">거래량 상위</option><option value="marketSum">시가총액</option><option value="popular">인기 종목</option><option value="up">상승</option><option value="flat">보합</option><option value="down">하락</option><option value="volSurge">거래량 급증</option><option value="volDrop">거래량 급감</option><option value="high52">52주 최고</option><option value="low52">52주 최저</option></select></div>
+ <div class="archive-controls"><label for="archive-date">저장 날짜</label><select id="archive-date"><option value="">기록 확인 중…</option></select><label for="archive-kind">랭킹 항목</label><select id="archive-kind"><option value="priceTop">거래대금 상위</option><option value="quantTop">거래량 상위</option><option value="marketSum">시가총액</option><option value="popular">인기 종목</option><option value="up">상승</option><option value="flat">보합</option><option value="down">하락</option><option value="volSurge">거래량 급증</option><option value="volDrop">거래량 급감</option><option value="high52">52주 최고</option><option value="low52">52주 최저</option></select><button id="archive-query" class="archive-query" type="button">조회</button></div>
  <button id="archive-expand" class="more archive-expand" type="button" aria-expanded="false">▼ 저장 기록 전체 펼쳐보기</button>
  <div id="archive-content" hidden>
   <nav class="archive-market-filters archive-market-top"><button class="selected" data-archive-market="ALL">전체</button><button data-archive-market="KOSPI">코스피</button><button data-archive-market="KOSDAQ">코스닥</button></nav>
@@ -56,5 +56,5 @@
 </main>
 <footer>DATA SOURCE · <a href="https://stock.naver.com/market/stock/kr/stocklist/priceTop" target="_blank" rel="noopener">네이버 증권 실시간 랭킹</a></footer>
 </div>
-<script src="app.js?v=25"></script>
+<script src="app.js?v=27"></script>
 </body></html>
