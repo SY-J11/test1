@@ -5,6 +5,8 @@ const seed=[{name:'삼성전자',code:'005930'},{name:'삼성전자우',code:'00
 const $=id=>document.getElementById(id), blank='—';
 const FLOW_DATE_KEYS=['tradeDate','date','localDate','localTradedAt','bizdate','tradingDate','bizDate','trdDt','dt','basDt','yyyymmdd','tradeDateYmd','dateString','tradedAt','dealDate','stckBsopDate','ymd','businessDate','tradingDay','stck_bsop_date','bsopDate'];
 let current={name:'',code:''},timer=null,seq=0;
+// 현재가와 멀티플 응답 순서가 달라도 계산값을 보존한다.
+let quickFairMultipleStore={code:'',annual:null,ttm:null,estTtm:null};
 let dailyChartPeriod='day',dailyChartCache=new Map(),dailyChartRequest=0;
 const dailyChartForeignDone=new Set(),dailyChartForeignInFlight=new Set();
 const chartRanges={day:[5,10,20,40,60,100,120,200,240],week:[4,8,16,24,32,64,128,256,512],month:[6,12,18,24,30,36,42,48,60],year:[10,15,20,25]};
@@ -788,11 +790,20 @@ async function loadChartPeriod(period){
  }catch(e){if(!stale()){host.innerHTML=`<div class="chart-empty">${limit}${chartUnit[period]}봉 데이터를 불러오지 못했습니다. 다시 탭을 눌러 시도해 주세요.</div>`;$('dailyChartRange').textContent='조회 실패'}}
 }
 function updateFairPricesFromVisibleMetrics(){
- const price=num($('price')?.textContent);
+ // #price 전체 textContent에는 등락 정보(#change)까지 포함되어 숫자 변환에 실패한다.
+ // render()가 저장한 current.price를 우선 사용하고, 초기 렌더 전에는 가격 텍스트 노드만 읽는다.
+ const price=num(current?.price)??num($('price')?.childNodes?.[0]?.textContent);
  if(price===null||price<=0)return;
- for(const [id,key] of [['fairAnnual','annualMultiple'],['fairTtm','ttmMultiple'],['fairEstTtm','estTtmMultiple']]){
-  const node=$(id),multiple=num($(key)?.textContent);
-  if(!node||multiple===null||multiple<=0)continue;
+ const keys=[['fairAnnual','annualMultiple','annual'],['fairTtm','ttmMultiple','ttm'],['fairEstTtm','estTtmMultiple','estTtm']];
+ for(const [id,key,storeKey] of keys){
+  const node=$(id),metricNode=$(key);
+  if(!node)continue;
+  const visibleMultiple=num(metricNode?.textContent);
+  const storedMultiple=quickFairMultipleStore.code===current?.code?quickFairMultipleStore[storeKey]:null;
+  const multiple=visibleMultiple!==null?visibleMultiple:storedMultiple;
+  if(multiple===null||multiple===undefined||multiple<=0)continue;
+  // 기본정보 렌더가 늦게 도착해 멀티플 칸을 비워도 앞서 계산한 멀티플을 복원한다.
+  if(visibleMultiple===null&&storedMultiple!==null&&metricNode)metricNode.textContent=fmt(storedMultiple,'배');
   const fair=Math.round(price*10/multiple);
   node.textContent=`${fair.toLocaleString('ko-KR')}원`;
   node.style.color=fair<price?'#3979d8':fair>price?'#df5967':'';
@@ -866,7 +877,7 @@ async function loadInitialStockFromUrl(){
   if(local.length===1)load(local[0].code,local[0].name);else showResults(local,target.name,local.length?'종목을 선택해 주세요.':'종목 검색에 실패했습니다. 종목명이나 코드를 확인해 주세요.');
  }
 }
-async function load(code,name='',forceRefresh=false){if(forceRefresh){dailyRowsStore.delete(code);foreignStore.delete(code);foreignRateInFlight.delete(code)}dailyChartPeriod='day';chartRangeSel={...chartRangeDefault};renderRangeTabs('day');$('dailyChartTitle').textContent='120일봉 차트';dailyChartCache.clear();dailyChartForeignDone.clear();dailyChartForeignInFlight.clear();document.querySelectorAll('.daily-chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.period==='day');b.setAttribute('aria-selected',String(b.dataset.period==='day'))});const id=++seq,known=seed.find(x=>x.code===code);current={code,name:name||known?.name||code};dartFundamentalRequestId++;dartFundamentalInFlightCode='';if($('dartFundamentalLoad')){$('dartFundamentalLoad').disabled=false;$('dartFundamentalLoad').textContent='데이터 불러오기';}dartConsensusQuarters=[];dartFinancialDataCache=null;dartNaverEarningsData=null;dartFundamentalCache=null;dartFundamentalLoadedCode='';naverInvestmentCache=null;naverInvestmentLoadedCode='';naverInvestmentPeriod='quarter';document.querySelectorAll('[data-naver-period]').forEach(b=>b.classList.toggle('active',b.dataset.naverPeriod==='quarter'));const perShareDetails=$('dartPerShareDetails');if(perShareDetails){perShareDetails.hidden=false;if($('naverInvestmentStatus'))$('naverInvestmentStatus').textContent='펼치기를 누르면 네이버 투자지표를 불러옵니다.';}if($('dartFundamentalLoad'))$('dartFundamentalLoad').hidden=false;if($('dartFundamentalRefresh'))$('dartFundamentalRefresh').hidden=true;if($('dartFundamentalContent'))$('dartFundamentalContent').hidden=true;renderDartSurpriseAnalysis();if(perShareDetails?.open)loadNaverInvestment(code);const dartLink=$('dartLink');if(dartLink){const dartName=name||known?.name||code;dartLink.href=`https://dart.fss.or.kr/html/search/SearchCompanyIR3_M.html?textCrpNM=${encodeURIComponent(dartName)}`;dartLink.dataset.dartName=dartName;}updateFavoriteButton();$('name').textContent=current.name;$('code').textContent=code;$('change').textContent='데이터 조회 중…';$('status').textContent='네이버 증권 데이터 조회 중…';$('query').value=current.name;$('results').hidden=true;$('chart').innerHTML='<div class="chart-empty">분기 재무 데이터 조회 중…</div>';try{const flowKrxPromise=fetchFlowHistory(code,'KRX');const flowNxtPromise=fetchFlowHistory(code,'NXT');const floatSharesPromise=Promise.race([loadFloatingSharesFromCompany(code).catch(()=>null),new Promise(resolve=>setTimeout(()=>resolve(null),2200))]);const pricePromise=loadDailyPrices120(code,raw=>{if(id!==seq)return;renderDailyChart(raw,'day')});pricePromise.then(raw=>{if(id!==seq)return;dailyChartCache.set(code+'-day',raw);renderDailyChart(raw,'day');loadChartPeriod('day')}).catch(()=>{});const basicPromise=first([`${API}/api/stock/${code}/basic`]);
+async function load(code,name='',forceRefresh=false){if(forceRefresh){dailyRowsStore.delete(code);foreignStore.delete(code);foreignRateInFlight.delete(code)}dailyChartPeriod='day';chartRangeSel={...chartRangeDefault};renderRangeTabs('day');$('dailyChartTitle').textContent='120일봉 차트';dailyChartCache.clear();dailyChartForeignDone.clear();dailyChartForeignInFlight.clear();document.querySelectorAll('.daily-chart-tabs button').forEach(b=>{b.classList.toggle('active',b.dataset.period==='day');b.setAttribute('aria-selected',String(b.dataset.period==='day'))});const id=++seq,known=seed.find(x=>x.code===code);current={code,name:name||known?.name||code};quickFairMultipleStore={code,annual:null,ttm:null,estTtm:null};dartFundamentalRequestId++;dartFundamentalInFlightCode='';if($('dartFundamentalLoad')){$('dartFundamentalLoad').disabled=false;$('dartFundamentalLoad').textContent='데이터 불러오기';}dartConsensusQuarters=[];dartFinancialDataCache=null;dartNaverEarningsData=null;dartFundamentalCache=null;dartFundamentalLoadedCode='';naverInvestmentCache=null;naverInvestmentLoadedCode='';naverInvestmentPeriod='quarter';document.querySelectorAll('[data-naver-period]').forEach(b=>b.classList.toggle('active',b.dataset.naverPeriod==='quarter'));const perShareDetails=$('dartPerShareDetails');if(perShareDetails){perShareDetails.hidden=false;if($('naverInvestmentStatus'))$('naverInvestmentStatus').textContent='펼치기를 누르면 네이버 투자지표를 불러옵니다.';}if($('dartFundamentalLoad'))$('dartFundamentalLoad').hidden=false;if($('dartFundamentalRefresh'))$('dartFundamentalRefresh').hidden=true;if($('dartFundamentalContent'))$('dartFundamentalContent').hidden=true;renderDartSurpriseAnalysis();if(perShareDetails?.open)loadNaverInvestment(code);const dartLink=$('dartLink');if(dartLink){const dartName=name||known?.name||code;dartLink.href=`https://dart.fss.or.kr/html/search/SearchCompanyIR3_M.html?textCrpNM=${encodeURIComponent(dartName)}`;dartLink.dataset.dartName=dartName;}updateFavoriteButton();$('name').textContent=current.name;$('code').textContent=code;$('change').textContent='데이터 조회 중…';$('status').textContent='네이버 증권 데이터 조회 중…';$('query').value=current.name;$('results').hidden=true;$('chart').innerHTML='<div class="chart-empty">분기 재무 데이터 조회 중…</div>';try{const flowKrxPromise=fetchFlowHistory(code,'KRX');const flowNxtPromise=fetchFlowHistory(code,'NXT');const floatSharesPromise=Promise.race([loadFloatingSharesFromCompany(code).catch(()=>null),new Promise(resolve=>setTimeout(()=>resolve(null),2200))]);const pricePromise=loadDailyPrices120(code,raw=>{if(id!==seq)return;renderDailyChart(raw,'day')});pricePromise.then(raw=>{if(id!==seq)return;dailyChartCache.set(code+'-day',raw);renderDailyChart(raw,'day');loadChartPeriod('day')}).catch(()=>{});const basicPromise=first([`${API}/api/stock/${code}/basic`]);
 const integrationPromise=first([`${API}/api/stock/${code}/integration`]);
 const quarterPromise=first([`${API}/api/stock/${code}/finance/quarter`]);
 const annualPromise=loadAnnualData(code);
@@ -916,7 +927,7 @@ pricePromise.then(raw=>{if(id!==seq)return;earlyPriceMap=priceHistoryMap(raw);re
 floatSharesPromise.then(value=>{if(id!==seq||!(value>0))return;earlyFloatShares=value;renderEarlyFlowCards()}).catch(()=>{});
 // 재무 응답은 서로를 기다리지 않고 도착 즉시 중간 지표와 6분기 그래프에 반영한다.
 let quickQuarterRaw=null,quickIntegrationRaw=null,quickAnnualRaw=null;
-const setQuickMetric=(key,value)=>{const node=$(key);if(!node||value===null||value===undefined||value===blank||value==='')return;node.textContent=value;const t=String(value).trim();node.style.color=/^\s*[-−]/.test(t)||/\(\s*[-−]\s*\d/.test(t)?'#3979d8':'';if(key==='annualMultiple'||key==='ttmMultiple'||key==='estTtmMultiple')updateFairPricesFromVisibleMetrics()};
+const setQuickMetric=(key,value)=>{const node=$(key);if(!node||value===null||value===undefined||value===blank||value==='')return;node.textContent=value;const t=String(value).trim();node.style.color=/^\s*[-−]/.test(t)||/\(\s*[-−]\s*\d/.test(t)?'#3979d8':'';const storeKey={annualMultiple:'annual',ttmMultiple:'ttm',estTtmMultiple:'estTtm'}[key];if(storeKey&&quickFairMultipleStore.code===code)quickFairMultipleStore[storeKey]=num(value);if(storeKey)updateFairPricesFromVisibleMetrics()};
 const applyQuickFinancialView=()=>{
   const q=parseFinance(quickQuarterRaw||{}),iq=parseFinance(quickIntegrationRaw||{});
   const allQ=q.quarters.length?q.quarters:iq.quarters;
@@ -940,7 +951,7 @@ const applyQuickFinancialView=()=>{
   const ttmMultiple=marketCapEok!==null&&ttmOp!==null&&ttmOp!==0?marketCapEok/ttmOp:null;
   const estTtmMultiple=marketCapEok!==null&&estTtmOp!==null&&estTtmOp!==0?marketCapEok/estTtmOp:null;
   for(const [key,value] of [['annualMultiple',annualMultiple],['ttmMultiple',ttmMultiple],['estTtmMultiple',estTtmMultiple]])if(value!==null)setQuickMetric(key,fmt(value,'배'));
-  const price=num($('price')?.textContent);for(const [id,multiple] of [['fairAnnual',annualMultiple],['fairTtm',ttmMultiple],['fairEstTtm',estTtmMultiple]]){if(multiple===null||!(multiple>0)||price===null)continue;const node=$(id);if(node){const fair=Math.round(price*10/multiple);node.textContent=`${fair.toLocaleString('ko-KR')}원`;node.style.color=fair<price?'#3979d8':fair>price?'#df5967':''}}
+  const price=num(current?.price)??num($('price')?.childNodes?.[0]?.textContent);for(const [id,multiple] of [['fairAnnual',annualMultiple],['fairTtm',ttmMultiple],['fairEstTtm',estTtmMultiple]]){if(multiple===null||!(multiple>0)||price===null)continue;const node=$(id);if(node){const fair=Math.round(price*10/multiple);node.textContent=`${fair.toLocaleString('ko-KR')}원`;node.style.color=fair<price?'#3979d8':fair>price?'#df5967':''}}
 };
 // 현재가·기본정보는 기본 API 두 건만 도착하면 먼저 표시하고, 재무·수급·차트 보조자료는 뒤에서 합칩니다.
 const coreResult=await Promise.allSettled([basicPromise]);
