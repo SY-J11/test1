@@ -95,3 +95,13 @@ html.dark .eyebrow{color:#7fa3cc}
 
 /* v24: independent filters and analysis for saved archive */
 .archive-count-tabs{margin:12px 0 8px}.archive-etf{margin:6px 0 12px}.archive-anchors{margin:10px 0 14px}.archive-analysis{margin:12px 0;padding:12px;border:1px solid var(--line,#dce3ed);border-radius:14px;background:var(--card,#fff)}.archive-analysis h3{font-size:15px;margin:0}.archive-analysis .section-head p{margin:4px 0 0}.archive-analysis .trend{margin:8px 0 0;padding-left:18px}.archive-market-filters{display:flex;gap:5px;margin-top:8px}.archive-market-filters button,.archive-sort button{border:1px solid var(--line,#dce3ed);border-radius:9px;padding:7px 10px;background:var(--card,#fff);color:inherit;font:inherit;font-size:12px}.archive-market-filters button.selected,.archive-sort button.selected{background:var(--accent-soft,#eaf2ff);border-color:var(--accent,#8bb4e8);font-weight:700}.archive-sort{margin:8px 0}.archive-analysis .sec-t{width:100%}.archive-analysis .sec-t td,.archive-analysis .sec-t th{padding:8px 5px}
+
+/* v25: archive history collapse, market partition selector and sector expansion */
+.archive-expand{width:100%;margin:8px 0 12px;text-align:center;font-weight:800}
+.archive-market-top{display:flex;gap:6px;margin:10px 0 8px}
+.archive-market-top button{flex:1;border:1px solid var(--line);border-radius:10px;padding:9px 8px;background:var(--card);color:inherit;font:inherit;font-size:12px;font-weight:700}
+.archive-market-top button.selected{background:var(--accent-soft,#eaf2ff);border-color:var(--accent,#8bb4e8);font-weight:800}
+.archive-sector-more{margin-top:8px}
+#archive-content[hidden]{display:none!important}
+html.dark .archive-market-top button{background:#202733;border-color:var(--line);color:#aab5c5}
+html.dark .archive-market-top button.selected{background:#2a3a52;border-color:#3b5278;color:#cfe0f7}

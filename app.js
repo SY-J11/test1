@@ -1,4 +1,4 @@
-const WORKER='https://std1.mcraft-tiger-574.workers.dev';
+const WORKER='https://st.mcraft-tiger-574.workers.dev';
 const DESKTOP='https://stock.naver.com';
 const $=id=>document.getElementById(id);
 const kinds={
@@ -421,35 +421,43 @@ document.addEventListener('click',e=>{
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-opt]');if(!b)return;const [k,v]=b.dataset.opt.split(':');if(k==='min')minVal=+v;else hlMode=v;cache[active]=null;load(active,true)});
 
 
-// v24: saved daily archive controls (independent from live ranking controls)
+// v25: saved daily archive controls, full market partitions and live-equivalent analysis
 const ARCHIVE_KINDS={priceTop:'priceTop',quantTop:'quantTop',marketSum:'marketSum',popular:'popular',up:'up',flat:'flat',down:'down',volSurge:'volSurge',volDrop:'volDrop',high52:'high52',low52:'low52'};
-let archiveN=20,archiveEtf=false,archiveMarket='ALL',archiveSort='rank',archivePayloadRows=[];
-function renderArchive(){
- const box=$('archive-rows'),status=$('archive-status');if(!box)return;
+let archiveN=20,archiveEtf=false,archiveMarket='ALL',archiveSort='rank',archivePayloadRows=[],archiveSectorOpen=false;
+function archiveBase(){
  let rows=archivePayloadRows.slice();
  rows.forEach(x=>{const z=classify(x);x.sector=z[0];x.detail=z[1];x.src=z[2]});
- if(archiveMarket!=='ALL')rows=rows.filter(x=>String(x.market||'').includes(archiveMarket));
  if(archiveEtf)rows=rows.filter(x=>!isEtf(x));
- if(archiveSort==='rate')rows.sort((a,b)=>(b.rate??-Infinity)-(a.rate??-Infinity));
- rows=rows.slice(0,archiveN);
- box.innerHTML=rows.length?rows.map((x,i)=>{const c=cls3(x.rate),rate=x.rate==null?'—':(x.rate>0?'+':'')+x.rate.toFixed(2)+'%';const mk=String(x.market||'').includes('KOSDAQ')?'코스닥':String(x.market||'').includes('KOSPI')?'코스피':'';return `<div class="archive-item"><span class="archive-rank">${i+1}</span><div class="archive-name"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.code)}${mk?' · '+mk:''} · ${escapeHtml(x.sector||'업종 미확인')}</small></div><div class="archive-price ${c}">${fmt(x.price)}<small>${rate}</small></div></div>`}).join(''):'<div class="archive-empty">선택한 조건에 해당하는 저장 종목이 없습니다.</div>';
+ return rows.slice(0,archiveN);
+}
+function renderArchive(){
+ const box=$('archive-rows'),status=$('archive-status');if(!box)return;
+ const rows=archiveBase();
+ let list=rows.slice();
+ if(archiveSort==='rate')list.sort((a,b)=>(b.rate??-Infinity)-(a.rate??-Infinity));
+ box.innerHTML=list.length?list.map((x,i)=>{const c=cls3(x.rate),rate=x.rate==null?'—':(x.rate>0?'+':'')+x.rate.toFixed(2)+'%';const mk=String(x.market||'').includes('KOSDAQ')?'코스닥':String(x.market||'').includes('KOSPI')?'코스피':'';return `<div class="archive-item"><span class="archive-rank">${i+1}</span><div class="archive-name"><b>${escapeHtml(x.name)}</b><small>${escapeHtml(x.code)}${mk?' · '+mk:''} · ${escapeHtml(x.sector||'업종 미확인')}</small></div><div class="archive-price ${c}">${fmt(x.price)}<small>${rate}</small></div></div>`}).join(''):'<div class="archive-empty">선택한 조건에 해당하는 저장 종목이 없습니다.</div>';
  const selectedDate=$('archive-date')?.value||'',kind=$('archive-kind')?.value||'';
- status.textContent=`${selectedDate} · ${kind} · ${rows.length}개 표시 / 필터 적용 전 ${archivePayloadRows.length}개 저장 (종가 기준)`;
+ status.textContent=`${selectedDate} · ${kind} · ${archiveMarket} · ${rows.length}개 표시 / ${archivePayloadRows.length}개 저장 (종가 기준)`;
+ // 저장 기록 트렌드: 시장 분위기·거래대금 방향·대표 급등 종목의 3개 핵심 항목만 표시합니다.
  const up=rows.filter(x=>x.rate>0).length,down=rows.filter(x=>x.rate<0).length,flat=rows.filter(x=>x.rate===0).length;
- const avg=rows.length?rows.reduce((a,x)=>a+(x.rate||0),0)/rows.length:0;
- const total=rows.reduce((a,x)=>a+(x.value||0),0);
+ const validRates=rows.filter(x=>x.rate!==null&&x.rate!==undefined&&Number.isFinite(x.rate));
+ const avg=validRates.length?validRates.reduce((a,x)=>a+x.rate,0)/validRates.length:0;
+ const mood=up>down?'상승 우위':down>up?'하락 우위':'혼조';
+ const valueTotal=rows.reduce((a,x)=>a+Math.max(0,x.value||0),0);
+ const upValue=rows.filter(x=>x.rate>0).reduce((a,x)=>a+Math.max(0,x.value||0),0);
+ const downValue=rows.filter(x=>x.rate<0).reduce((a,x)=>a+Math.max(0,x.value||0),0);
+ const upShare=valueTotal>0?upValue/valueTotal*100:(rows.length?up/rows.length*100:0);
+ const downShare=valueTotal>0?downValue/valueTotal*100:(rows.length?down/rows.length*100:0);
  const trend=[];
- if(rows.length)trend.push(`<b>시장 분위기</b> · ${up>down?'상승 우위':down>up?'하락 우위':'혼조'} · 평균 등락률 <span class="${cls3(avg)}">${pct(avg)}</span> (상승 ${up} · 보합 ${flat} · 하락 ${down})`);
- if(total>0){const uv=rows.filter(x=>x.rate>0).reduce((a,x)=>a+(x.value||0),0)/total*100,dv=rows.filter(x=>x.rate<0).reduce((a,x)=>a+(x.value||0),0)/total*100;trend.push(`<b>거래대금 방향</b> · 상승 종목 ${uv.toFixed(1)}% · 하락 종목 ${dv.toFixed(1)}%`)}
- const hot=rows.filter(x=>x.rate>=10),cold=rows.filter(x=>x.rate<=-10);
- if(hot.length)trend.push(`<b>급등 종목</b> · ${hot.slice(0,5).map(x=>`${escapeHtml(x.name)} <span class="up">${pct(x.rate)}</span>`).join(' · ')}`);
- if(cold.length)trend.push(`<b>급락 종목</b> · ${cold.slice(0,5).map(x=>`${escapeHtml(x.name)} <span class="down">${pct(x.rate)}</span>`).join(' · ')}`);
+ if(rows.length)trend.push(`<b>시장 분위기</b> · ${mood} · 평균 등락률 <span class="${cls3(avg)}">${pct(avg)}</span> (상승 ${up} · 보합 ${flat} · 하락 ${down})`);
+ if(rows.length)trend.push(`<b>거래대금 방향</b> · 상승 종목 <span class="up">${upShare.toFixed(1)}%</span> · 하락 종목 <span class="down">${downShare.toFixed(1)}%</span>`);
+ const topGainer=rows.filter(x=>x.rate!==null&&x.rate!==undefined&&Number.isFinite(x.rate)).sort((a,b)=>b.rate-a.rate)[0];
+ if(topGainer&&topGainer.rate>0)trend.push(`<b>급등 종목</b> · ${escapeHtml(topGainer.name)} <span class="up">${pct(topGainer.rate)}</span>`);
  $('archive-trend-list').innerHTML=trend.map(x=>`<li>${x}</li>`).join('')||'<li>분석할 저장 종목이 없습니다.</li>';
- const g={};rows.forEach(x=>{const k=x.sector||'업종 미확인';const a=g[k]||(g[k]={n:0,value:0,weighted:0});a.n++;a.value+=x.value||0;a.weighted+=(x.rate||0)*(x.value||1)});
- const sum=Object.values(g).reduce((a,x)=>a+x.value,0),count=rows.length||1;
- const sectors=Object.entries(g).map(([name,a])=>({name,n:a.n,share:sum>0?a.value/sum*100:a.n/count*100,avg:a.value>0?a.weighted/a.value:a.weighted/a.n})).sort((a,b)=>b.share-a.share);
+ // 섹터 분석은 기본 5개만 표시하고, 나머지는 펼침으로 확인합니다.
  $('archive-sector-total').textContent=sectors.length+'개 섹터';
- $('archive-sector-list').innerHTML=sectors.length?'<table class="sec-t"><thead><tr><th>섹터</th><th>종목</th><th>비중</th><th>평균</th></tr></thead><tbody>'+sectors.map(a=>`<tr><td><b>${escapeHtml(a.name)}</b></td><td class="num">${a.n}</td><td><div class="bar"><i style="width:${a.share}%"></i></div><small>${a.share.toFixed(1)}%</small></td><td class="rate ${cls3(a.avg)}">${pct(a.avg)}</td></tr>`).join('')+'</tbody></table>':'<div class="empty">분석할 저장 종목이 없습니다.</div>';
+ const shown=archiveSectorOpen?sectors:sectors.slice(0,5);
+ $('archive-sector-list').innerHTML=sectors.length?'<table class="sec-t"><thead><tr><th>섹터</th><th>종목</th><th>비중</th><th>평균</th></tr></thead><tbody>'+shown.map(a=>`<tr><td><b>${escapeHtml(a.s)}</b></td><td class="num">${a.n}</td><td><div class="bar"><i style="width:${a.share}%"></i></div><small>${a.share.toFixed(1)}%</small></td><td class="rate ${cls3(a.avg)}">${pct(a.avg)}</td></tr>`).join('')+'</tbody></table>'+(sectors.length>5?`<button id="archive-sector-more" class="more">${archiveSectorOpen?'▲ 접기':'▼ 나머지 '+(sectors.length-5)+'개 섹터 펼치기'}</button>`:''):'<div class="empty">분석할 저장 종목이 없습니다.</div>';
 }
 async function loadArchiveDates(){
  const sel=$('archive-date'),status=$('archive-status');if(!sel)return;
@@ -458,17 +466,19 @@ async function loadArchiveDates(){
 }
 async function loadArchiveRows(){
  const date=$('archive-date')?.value,kind=$('archive-kind')?.value,box=$('archive-rows');if(!date||!kind||!box)return;box.innerHTML='<div class="archive-empty">저장된 종가 데이터를 불러오는 중…</div>';
- try{const u=WORKER+'/?archive=1&date='+encodeURIComponent(date)+'&kind='+encodeURIComponent(kind);const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('데이터 요청 오류 ('+r.status+')');const j=await r.json();archivePayloadRows=getRows(j.payload||{}).slice(0,100);renderArchive();}
+ try{const u=WORKER+'/?archive=1&date='+encodeURIComponent(date)+'&kind='+encodeURIComponent(kind)+'&marketType='+encodeURIComponent(archiveMarket);const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw new Error('데이터 요청 오류 ('+r.status+')');const j=await r.json();archivePayloadRows=getRows(j.payload||{}).slice(0,100);archivePayloadRows.forEach(x=>{if(!x.market)x.market=archiveMarket});archiveSectorOpen=false;renderArchive();if(!j.payload)$('archive-status').textContent='선택한 날짜에는 해당 시장 구분의 저장 기록이 없습니다. V25 Worker 배포 후 다음 자동 저장부터 전체·코스피·코스닥 기록이 각각 저장됩니다.';}
  catch(e){archivePayloadRows=[];box.innerHTML='<div class="archive-empty">기록을 불러오지 못했습니다.</div>'; $('archive-status').textContent='기록 조회 실패: '+e.message}
 }
 if($('archive-date')){
  $('archive-refresh').addEventListener('click',loadArchiveDates);
  $('archive-date').addEventListener('change',loadArchiveRows);
  $('archive-kind').addEventListener('change',loadArchiveRows);
+ $('archive-expand').addEventListener('click',()=>{const c=$('archive-content'),b=$('archive-expand'),open=c.hidden;c.hidden=!open;b.setAttribute('aria-expanded',String(open));b.textContent=open?'▲ 저장 기록 전체 접기':'▼ 저장 기록 전체 펼쳐보기';if(open)renderArchive()});
  $('archive-cnt-tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-archive-n]');if(!b)return;archiveN=+b.dataset.archiveN;$('archive-cnt-tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));renderArchive()});
  $('archive-etf-toggle').addEventListener('click',()=>{archiveEtf=!archiveEtf;const b=$('archive-etf-toggle');b.classList.toggle('on',archiveEtf);b.setAttribute('aria-pressed',String(archiveEtf));b.textContent=archiveEtf?'✓ ETF·ETN 제외 중 (누르면 포함)':'ETF·ETN 제외하기';renderArchive()});
- document.querySelectorAll('[data-archive-market]').forEach(b=>b.addEventListener('click',()=>{archiveMarket=b.dataset.archiveMarket;document.querySelectorAll('[data-archive-market]').forEach(x=>x.classList.toggle('selected',x===b));renderArchive()}));
+ document.querySelectorAll('[data-archive-market]').forEach(b=>b.addEventListener('click',()=>{archiveMarket=b.dataset.archiveMarket;document.querySelectorAll('[data-archive-market]').forEach(x=>x.classList.toggle('selected',x.dataset.archiveMarket===archiveMarket));loadArchiveRows()}));
  document.querySelectorAll('[data-archive-sort]').forEach(b=>b.addEventListener('click',()=>{archiveSort=b.dataset.archiveSort;document.querySelectorAll('[data-archive-sort]').forEach(x=>x.classList.toggle('selected',x===b));renderArchive()}));
+ document.addEventListener('click',e=>{if(e.target&&e.target.id==='archive-sector-more'){archiveSectorOpen=!archiveSectorOpen;renderArchive()}});
  loadArchiveDates();
 }
 
