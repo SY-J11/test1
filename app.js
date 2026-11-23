@@ -432,7 +432,7 @@ function makeSummary(){
 function makeCharts(){
   const root=$('charts');root.innerHTML='';
   groups.forEach(group=>{
-    let visibleItems=group.items.filter(item=>item.source!=='kredNightFutures'&&(!item.semiconductorCandidate||item.summaryActive));
+    let visibleItems=group.items.filter(item=>item.id!=='ewy'&&item.source!=='kredNightFutures'&&(!item.semiconductorCandidate||item.summaryActive));
     const m7Set=new Set(M7_IDS);
     const byCap=(a,b)=>{const av=Number.isFinite(a.marketCap)&&a.marketCap>0?a.marketCap:null,bv=Number.isFinite(b.marketCap)&&b.marketCap>0?b.marketCap:null;if(av===null&&bv===null)return group.items.indexOf(a)-group.items.indexOf(b);if(av===null)return 1;if(bv===null)return -1;return bv-av;};
     visibleItems.sort((a,b)=>{if(m7Set.has(a.id)&&m7Set.has(b.id))return byCap(a,b);if(a.semiconductorCandidate&&b.semiconductorCandidate)return byCap(a,b);return group.items.indexOf(a)-group.items.indexOf(b);});
@@ -440,6 +440,17 @@ function makeCharts(){
     const heading=document.createElement('div');heading.className='section-heading group-heading';heading.innerHTML=`<div><span class="eyebrow">${group.label==='미국 증시'?'U.S. MARKETS':group.label==='금리·환율·원자재'?'RATES · FX · COMMODITIES':'KOREA MARKETS'}</span><h2>${group.label}</h2></div>`;root.appendChild(heading);
     let semiconductorWrap=null;
     visibleItems.forEach(item=>{
+      // EWY remains in the domestic data/summary group, but its chart is displayed above SOX.
+      if(item.id==='sox'){
+        const ewy=all.find(candidate=>candidate.id==='ewy');
+        if(ewy){
+          const ewyCard=document.createElement('article');
+          ewyCard.className='chart-card';
+          ewyCard.id=`chart-card-${ewy.id}`;
+          ewyCard.innerHTML=`<div class="chart-top"><div class="chart-title"><span class="number">+</span><h3>${ewy.name} [${ewy.ticker}]</h3></div><div class="quote-block"><div class="quote-close">${blank}</div><div class="quote-change neutral">${blank} · ${blank}</div><div class="quote-date">종가 기준</div></div></div><div class="chart-range-toolbar" data-range-for="${ewy.id}"><button type="button" data-range="1M">1M</button><button type="button" data-range="3M\" class="selected">3M</button><button type="button" data-range="6M">6M</button><button type="button" data-range="YTD">YTD</button><button type="button" data-range="1Y">1Y</button><button type="button" data-range="ALL">ALL</button></div><div id="chart-${ewy.id}" class="chart-area"><div class="chart-empty">시세 데이터를 불러오는 중…</div></div><div class="chart-foot"><span class="chart-note">${ewy.ticker}</span><span class="bar-count">전체 기간 데이터</span></div>`;
+          ewy.card=ewyCard;root.appendChild(ewyCard);
+        }
+      }
       if(item.id==='us2y'){
         // Keep the activity controls after the SOX, M7, and SK hynix chart cards.
         Object.entries(ACTIVITY_TYPES).forEach(([type,config])=>{
@@ -771,6 +782,9 @@ async function refreshAll(){
   const marketCapsTask=refreshMarketCaps();
   const priorityItems=groups.flatMap(group=>group.items)
     .filter(item=>item.source==='kredNightFutures');
+  // EWY는 국내/미국 지수 로딩 대기열 뒤에 밀리지 않도록 별도 우선 요청으로 즉시 시작합니다.
+  const ewyItem=all.find(item=>item.id==='ewy');
+  const ewyTask=ewyItem?loadItem(ewyItem):Promise.resolve();
 
   async function loadItem(item){
     try{
@@ -808,7 +822,7 @@ async function refreshAll(){
   await Promise.all([marketCapsTask,Promise.all(priorityItems.map(loadItem)),ndxTask]);
 
   $('status').textContent='핵심 지수 조회 완료 · 나머지 차트 불러오는 중…';
-  const priorityIds=new Set(priorityItems.map(item=>item.id));
+  const priorityIds=new Set([...priorityItems.map(item=>item.id),'ewy']);
   const queue=all.filter(item=>
     !item.hidden &&
     !priorityIds.has(item.id) &&
@@ -824,6 +838,8 @@ async function refreshAll(){
     }
   }
   await Promise.all(Array.from({length:8},()=>worker()));
+  // EWY가 늦더라도 다른 차트 로딩을 막지 않으며, 전체 상태 집계 전에 완료를 확인합니다.
+  await ewyTask;
 
   updateSummary();
   $('updated').textContent=`${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 갱신`;
