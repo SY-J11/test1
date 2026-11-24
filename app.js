@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
