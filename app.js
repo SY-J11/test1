@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -219,6 +219,8 @@ function colorClass(n){return n>0?'up':n<0?'down':'neutral';}
 function closeText(item,n){if(n==null)return blank;let suffix=item.suffix||'';if(item.unit==='yield')return `${fmt(n,item.decimals??3)}%`;if(item.unit==='fx')return `${fmt(n,item.decimals??2)}원`;if(item.unit==='commodity')return `$${fmt(n,item.decimals??2)}`;if(item.unit==='stock')return `$${fmt(n,2)}`;return `${fmt(n,item.decimals??2)}${suffix}`;}
 function changeText(item,n){if(n==null)return blank;const dec=item.unit==='yield'?3:2;const value=signed(n,dec);if(item.unit==='commodity'||item.unit==='stock')return `$ ${value}`;const suffix=item.unit==='yield'?'%p':item.unit==='fx'?'원':'';return `${value}${suffix}`;}
 function pctText(n){return n==null?blank:`${n>0?'+':''}${fmt(n,2)}%`;}
+function sessionPctFallback(price,delta){const p=Number(price),d=Number(delta);if(!Number.isFinite(p)||!Number.isFinite(d)||p<=0)return null;const reference=p-d;return reference>0?d/reference*100:null;}
+
 async function fetchActivityQuotes(force=false){
   if(!force&&activityQuotesCache&&Date.now()-activityQuotesFetchedAt<60000)return activityQuotesCache;
   if(activityLoadPromise)return activityLoadPromise;
@@ -877,7 +879,7 @@ function updateSummary(){
     change.textContent=`${changeText(item,headline.delta)} · ${pctText(headline.pct)}`;
     change.className=`summary-change ${colorClass(headline.delta)}`;
     if(item.unit==='stock'){
-      const sessions=[['pre',item.preMarketPrice,item.preMarketDelta,item.preMarketPct],['regular',item.regularMarketPrice,item.regularMarketDelta,item.regularMarketPct],['post',item.afterMarketPrice,item.afterMarketDelta,item.afterMarketPct]];
+      const sessions=[['pre',item.preMarketPrice,item.preMarketDelta,item.preMarketPct],['regular',item.regularMarketPrice,item.regularMarketDelta,Number.isFinite(item.regularMarketPct)?item.regularMarketPct:sessionPctFallback(item.regularMarketPrice,item.regularMarketDelta)],['post',item.afterMarketPrice,item.afterMarketDelta,item.afterMarketPct]];
       sessions.forEach(([key,p,d,pct])=>{
         const pEl=cell.querySelector(`.summary-${key}-price`),dEl=cell.querySelector(`.summary-${key}-delta`),pctEl=cell.querySelector(`.summary-${key}-pct`);
         if(!pEl||!dEl||!pctEl)return;
