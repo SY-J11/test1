@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -644,6 +644,13 @@ if(item.unit==='stock'){
     const dailySessionDate=ts=>Number.isFinite(Number(ts))&&Number(ts)>0?new Date(Number(ts)*1000).toISOString().slice(0,10):null;
     const minute=Number(nowParts.hour)*60+Number(nowParts.minute);
     const isWeekend=nowParts.weekday==='Sat'||nowParts.weekday==='Sun';
+    // 세션 캐시: 미국 동부시간 기준 20:00~다음 날 04:00은 같은 야간 세션으로 연결합니다.
+    // 09:30 이후 프리마켓은 당일 04:00~09:30 마지막 유효값을 고정하고,
+    // 20:00 이후 애프터마켓은 16:00~20:00 마지막 유효값을 고정합니다.
+    const sessionDateForCache=(()=>{const d=new Date(`${today}T12:00:00Z`);if(minute<240)d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
+    const cacheKey='premarket-session-values-v1';
+    let sessionCache={};try{sessionCache=JSON.parse(localStorage.getItem(cacheKey)||'{}')||{};}catch(e){sessionCache={};}
+    const cacheEntry=sessionCache[item.ticker]&&sessionCache[item.ticker].sessionDate===sessionDateForCache?sessionCache[item.ticker]:{};
     const bars=[];
     for(let i=0;i<times.length;i++){
       const value=Number(closes1m[i]);
@@ -723,9 +730,10 @@ if(item.unit==='stock'){
     // quote belongs to the overnight session. Do not reject a valid quote merely
     // because the chart endpoint reports a different/missing exchange timezone.
     // Keep a freshness guard so an old overnight quote is never shown as live.
-    const validOvernight=isYahooOvernight&&overnightPrice!==null&&
+    const inOvernightWindow=minute>=1200||minute<240;
+    const validOvernight=inOvernightWindow&&isYahooOvernight&&overnightPrice!==null&&
       (hasOvernightEpoch
-        ?overnightEpoch<=nowEpoch+30&&overnightEpoch>=nowEpoch-12*60*60
+        ?overnightEpoch<=nowEpoch+30&&overnightEpoch>=nowEpoch-12*60*60&&(!quoteOvernightSession||quoteOvernightSession===sessionDateForCache)
         :Boolean(quote.overnightMarketPrice!==undefined));
     const currentOvernightPrice=validOvernight?overnightPrice:null;
     // 프리마켓 종가는 당일 프리마켓 분봉의 마지막 체결가를 우선하고,
@@ -733,12 +741,14 @@ if(item.unit==='stock'){
     const preClose=lastOf(preToday)??currentPre;
     const regularClose=lastOf(regularToday)??currentRegular;
 
-    // 프리마켓 04:00~09:30 / 정규장 09:30~16:00 / 애프터마켓 16:00~20:00 (미 동부시간)
     const beforePremarket=isWeekend||minute<240;
     let prePrice;
-    if(beforePremarket)prePrice=priorPreClose??priorRegularClose;
-    else if(minute<570)prePrice=currentPre??lastOf(preToday)??priorPreClose??priorRegularClose;
-    else prePrice=preClose??currentPre??priorPreClose??priorRegularClose;
+    if(isWeekend)prePrice=cacheEntry.prePrice??priorPreClose??priorRegularClose;
+    else if(minute>=240&&minute<570){prePrice=currentPre??lastOf(preToday)??priorPreClose??priorRegularClose;}
+    else if(minute>=570){prePrice=cacheEntry.prePrice??preClose??currentPre??priorPreClose??priorRegularClose;}
+    else prePrice=cacheEntry.prePrice??priorPreClose??priorRegularClose;
+    // 유효한 당일 프리마켓 가격을 세션 날짜별로 저장하여 정규장 이후와 자정 이후에도 유지합니다.
+    if(!isWeekend&&positive(prePrice)!==null&&(minute>=240&&minute<570||minute>=570&&cacheEntry.prePrice===undefined)){cacheEntry.prePrice=prePrice;const preCacheBase=positive(dailyPriorClose)??positive(numOrNull(quote.regularMarketPreviousClose))??positive(lastOf(priorRegularBars));cacheEntry.preDelta=preCacheBase!==null?prePrice-preCacheBase:null;cacheEntry.prePct=cacheEntry.preDelta!==null&&positive(dailyPriorClose)!==null?cacheEntry.preDelta/dailyPriorClose*100:null;cacheEntry.sessionDate=sessionDateForCache;sessionCache[item.ticker]=cacheEntry;try{localStorage.setItem(cacheKey,JSON.stringify(sessionCache));}catch(e){}}
 
     // Yahoo 일봉 timestamp는 UTC 자정으로 제공될 수 있습니다.
     // 이를 뉴욕 시간으로 변환하면 날짜가 전날로 밀리므로 일봉 날짜는 UTC 기준으로 판정합니다.
@@ -776,7 +786,9 @@ if(item.unit==='stock'){
       positive(dailyPriorClose)??
       positive(numOrNull(quote.regularMarketPreviousClose))??
       positive(lastOf(priorRegularBars));
-    const preDelta=change(prePrice,preReferenceClose);
+    let preDelta=change(prePrice,preReferenceClose);
+    let prePct=pct(preDelta,preReferenceClose);
+    if(minute>=570&&cacheEntry.prePrice!==undefined){prePrice=cacheEntry.prePrice;preDelta=cacheEntry.preDelta??change(prePrice,preReferenceClose);prePct=cacheEntry.prePct??pct(preDelta,preReferenceClose);}
     const regularDelta=change(regularPrice,regularReferenceClose);
     const regularPct=pct(regularDelta,regularReferenceClose);
     const currentOvernightChange=validOvernight&&Number.isFinite(overnightDelta)
@@ -801,10 +813,12 @@ if(item.unit==='stock'){
       const ahDate=ahParts?`${ahParts.year}-${ahParts.month}-${ahParts.day}`:null;
       const ahMinute=ahParts?Number(ahParts.hour)*60+Number(ahParts.minute):null;
       const ahValid=ahPrice!==null&&ahParts&&ahDate===today&&ahMinute>=960&&ahMinute<1200&&ahEpoch<=nowEpoch+30&&ahEpoch>=nowEpoch-8*60*60;
-      if(ahValid){displayAfterHoursPrice=ahPrice;displayAfterHoursChange=Number.isFinite(ahChange)?ahChange:change(ahPrice,regularReferenceClose);const pagePct=numOrNull(ahQuote?.__pageAfterHoursPercent);const apiPct=numOrNull(ahQuote?.postMarketChangePercent);const ahReference=positive(numOrNull(ahQuote?.regularMarketPreviousClose))??positive(numOrNull(ahQuote?.regularMarketPrice))??positive(regularReferenceClose)??(Number.isFinite(displayAfterHoursChange)?positive(ahPrice-displayAfterHoursChange):null);const calculatedPct=displayAfterHoursChange!==null?(displayAfterHoursChange/(ahReference??(positive(ahPrice-displayAfterHoursChange)??1)))*100:null;displayAfterHoursPct=pagePct!==null?pagePct:(Number.isFinite(ahPct)?ahPct:(Number.isFinite(apiPct)?apiPct:calculatedPct));}
+      if(ahValid){displayAfterHoursPrice=ahPrice;displayAfterHoursChange=Number.isFinite(ahChange)?ahChange:change(ahPrice,regularReferenceClose);const pagePct=numOrNull(ahQuote?.__pageAfterHoursPercent);const apiPct=numOrNull(ahQuote?.postMarketChangePercent);const ahReference=positive(numOrNull(ahQuote?.regularMarketPreviousClose))??positive(numOrNull(ahQuote?.regularMarketPrice))??positive(regularReferenceClose)??(Number.isFinite(displayAfterHoursChange)?positive(ahPrice-displayAfterHoursChange):null);const calculatedPct=displayAfterHoursChange!==null?(displayAfterHoursChange/(ahReference??(positive(ahPrice-displayAfterHoursChange)??1)))*100:null;displayAfterHoursPct=pagePct!==null?pagePct:(Number.isFinite(ahPct)?ahPct:(Number.isFinite(apiPct)?apiPct:calculatedPct));cacheEntry.afterHoursPrice=displayAfterHoursPrice;cacheEntry.afterHoursChange=displayAfterHoursChange;cacheEntry.afterHoursPct=displayAfterHoursPct;cacheEntry.sessionDate=sessionDateForCache;sessionCache[item.ticker]=cacheEntry;try{localStorage.setItem(cacheKey,JSON.stringify(sessionCache));}catch(e){}}
+      // 20:00~04:00 ET에는 직전 애프터마켓 종료값을 날짜 변경에도 그대로 유지합니다.
+      if((minute>=1200||minute<240)&&cacheEntry.afterHoursPrice!==undefined){displayAfterHoursPrice=cacheEntry.afterHoursPrice;displayAfterHoursChange=cacheEntry.afterHoursChange??null;displayAfterHoursPct=cacheEntry.afterHoursPct??null;}
     }catch(ahError){console.warn(`${item.ticker} Yahoo After-hours quote 조회 실패`,ahError);}
     sessionQuotes={
-      preMarketPrice:prePrice,preMarketChange:preDelta,preMarketChangePercent:pct(preDelta,preReferenceClose),
+      preMarketPrice:prePrice,preMarketChange:preDelta,preMarketChangePercent:prePct,
       regularMarketPrice:regularPrice,regularMarketChange:regularDelta,regularMarketChangePercent:regularPct,
       displayAfterHoursPrice,displayAfterHoursChange,displayAfterHoursPercent:displayAfterHoursPct,
       postMarketPrice:postPrice,postMarketChange:postDelta,postMarketChangePercent:postPct,
