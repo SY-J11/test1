@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -984,7 +984,37 @@ async function refreshAll(){
     }
     updateSummary();
   })();
-  await Promise.all([marketCapsTask,Promise.all(priorityItems.map(loadItem)),ndxTask]);
+
+  // 일괄 Yahoo quote가 도착하면 2년 일봉/5일 분봉 조회가 끝나기 전이라도
+  // 종목의 정규장 기준 현재가를 카드와 요약에 먼저 표시합니다.
+  // 이후 fetchSeries/renderOne이 세션별 가격과 차트 데이터로 최종 갱신합니다.
+  const fastQuotePaintTask=marketCapsTask.then(()=>{
+    const now=Math.floor(Date.now()/1000);
+    all.forEach(item=>{
+      if(item.unit!=='stock'||!item.yahooQuote||dataById.has(item.id))return;
+      const q=item.yahooQuote;
+      const price=Number(q.regularMarketPrice);
+      const previous=Number(q.regularMarketPreviousClose);
+      const quoteTime=Number(q.regularMarketTime);
+      if(!Number.isFinite(price)||price<=0||!Number.isFinite(previous)||previous<=0)return;
+      // 미래 timestamp 또는 지나치게 오래된 시세는 첫 화면 임시 표시에도 사용하지 않습니다.
+      if(Number.isFinite(quoteTime)&&quoteTime>0&&(quoteTime>now+30||now-quoteTime>7*86400))return;
+      const delta=q.regularMarketChange!==null&&q.regularMarketChange!==undefined&&Number.isFinite(Number(q.regularMarketChange))?Number(q.regularMarketChange):price-previous;
+      const pct=q.regularMarketChangePercent!==null&&q.regularMarketChangePercent!==undefined&&Number.isFinite(Number(q.regularMarketChangePercent))?Number(q.regularMarketChangePercent):delta/previous*100;
+      item.last=price;item.delta=delta;item.pct=pct;item.prev=previous;
+      if(item.card){
+        const close=item.card.querySelector('.quote-close');
+        const change=item.card.querySelector('.quote-change');
+        const date=item.card.querySelector('.quote-date');
+        if(close)close.textContent=closeText(item,price);
+        if(change){change.textContent=`${changeText(item,delta)} · ${pctText(pct)}`;change.className=`quote-change ${colorClass(delta)}`;}
+        if(date)date.textContent='정규장 시세 · 상세 데이터 조회 중';
+      }
+    });
+    updateSummary();
+  }).catch(error=>console.warn('초기 시세 우선 표시 실패:',error));
+
+  await Promise.all([marketCapsTask,Promise.all(priorityItems.map(loadItem)),ndxTask,fastQuotePaintTask]);
 
   $('status').textContent='핵심 지수 조회 완료 · 나머지 차트 불러오는 중…';
   const priorityIds=new Set([...priorityItems.map(item=>item.id),'ewy']);
