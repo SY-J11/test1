@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -596,6 +596,9 @@ function makeCharts(){
   updateSemiconductorToggles();
 }
 function workerUrl(ticker){return `${PROXY_BASE}/?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=2y&interval=1d&events=div%2Csplits&includePrePost=true`)}`;}
+const SESSION_CACHE_KEY='premarket-session-values-v1';
+let sessionCacheMemory={};
+let sessionCacheDirty=false;
 async function fetchSeries(item){if(INACTIVE_EQUITIES[item.ticker])return {inactive:true,...INACTIVE_EQUITIES[item.ticker]};if(item.source==='kredNightFutures'){const response=await fetch(`${PROXY_BASE}/?url=${encodeURIComponent(item.page)}`,{cache:'no-store'});if(!response.ok)throw new Error(`KRED HTTP ${response.status}`);const html=await response.text();
 const doc=new DOMParser().parseFromString(html,'text/html');
 const decode=s=>String(s||'').replace(/&nbsp;|&#160;/gi,' ').replace(/&amp;/gi,'&').replace(/&minus;/gi,'−').replace(/&#8722;/g,'−');
@@ -648,9 +651,7 @@ if(item.unit==='stock'){
     // 09:30 이후 프리마켓은 당일 04:00~09:30 마지막 유효값을 고정하고,
     // 20:00 이후 애프터마켓은 16:00~20:00 마지막 유효값을 고정합니다.
     const sessionDateForCache=(()=>{const d=new Date(`${today}T12:00:00Z`);if(minute<240)d.setUTCDate(d.getUTCDate()-1);return d.toISOString().slice(0,10);})();
-    const cacheKey='premarket-session-values-v1';
-    let sessionCache={};try{sessionCache=JSON.parse(localStorage.getItem(cacheKey)||'{}')||{};}catch(e){sessionCache={};}
-    const cacheEntry=sessionCache[item.ticker]&&sessionCache[item.ticker].sessionDate===sessionDateForCache?sessionCache[item.ticker]:{};
+    const cacheEntry=sessionCacheMemory[item.ticker]&&sessionCacheMemory[item.ticker].sessionDate===sessionDateForCache?sessionCacheMemory[item.ticker]:{};
     const bars=[];
     for(let i=0;i<times.length;i++){
       const value=Number(closes1m[i]);
@@ -748,7 +749,7 @@ if(item.unit==='stock'){
     else if(minute>=570){prePrice=cacheEntry.prePrice??preClose??currentPre??priorPreClose??priorRegularClose;}
     else prePrice=cacheEntry.prePrice??priorPreClose??priorRegularClose;
     // 유효한 당일 프리마켓 가격을 세션 날짜별로 저장하여 정규장 이후와 자정 이후에도 유지합니다.
-    if(!isWeekend&&positive(prePrice)!==null&&(minute>=240&&minute<570||minute>=570&&cacheEntry.prePrice===undefined)){cacheEntry.prePrice=prePrice;const preCacheBase=positive(dailyPriorClose)??positive(numOrNull(quote.regularMarketPreviousClose))??positive(lastOf(priorRegularBars));cacheEntry.preDelta=preCacheBase!==null?prePrice-preCacheBase:null;cacheEntry.prePct=cacheEntry.preDelta!==null&&positive(dailyPriorClose)!==null?cacheEntry.preDelta/dailyPriorClose*100:null;cacheEntry.sessionDate=sessionDateForCache;sessionCache[item.ticker]=cacheEntry;try{localStorage.setItem(cacheKey,JSON.stringify(sessionCache));}catch(e){}}
+    if(!isWeekend&&positive(prePrice)!==null&&(minute>=240&&minute<570||minute>=570&&cacheEntry.prePrice===undefined)){cacheEntry.prePrice=prePrice;const preCacheBase=positive(dailyPriorClose)??positive(numOrNull(quote.regularMarketPreviousClose))??positive(lastOf(priorRegularBars));cacheEntry.preDelta=preCacheBase!==null?prePrice-preCacheBase:null;cacheEntry.prePct=cacheEntry.preDelta!==null&&positive(dailyPriorClose)!==null?cacheEntry.preDelta/dailyPriorClose*100:null;cacheEntry.sessionDate=sessionDateForCache;sessionCacheMemory[item.ticker]=cacheEntry;sessionCacheDirty=true;}
 
     // Yahoo 일봉 timestamp는 UTC 자정으로 제공될 수 있습니다.
     // 이를 뉴욕 시간으로 변환하면 날짜가 전날로 밀리므로 일봉 날짜는 UTC 기준으로 판정합니다.
@@ -813,7 +814,7 @@ if(item.unit==='stock'){
       const ahDate=ahParts?`${ahParts.year}-${ahParts.month}-${ahParts.day}`:null;
       const ahMinute=ahParts?Number(ahParts.hour)*60+Number(ahParts.minute):null;
       const ahValid=ahPrice!==null&&ahParts&&ahDate===today&&ahMinute>=960&&ahMinute<1200&&ahEpoch<=nowEpoch+30&&ahEpoch>=nowEpoch-8*60*60;
-      if(ahValid){displayAfterHoursPrice=ahPrice;displayAfterHoursChange=Number.isFinite(ahChange)?ahChange:change(ahPrice,regularReferenceClose);const pagePct=numOrNull(ahQuote?.__pageAfterHoursPercent);const apiPct=numOrNull(ahQuote?.postMarketChangePercent);const ahReference=positive(numOrNull(ahQuote?.regularMarketPreviousClose))??positive(numOrNull(ahQuote?.regularMarketPrice))??positive(regularReferenceClose)??(Number.isFinite(displayAfterHoursChange)?positive(ahPrice-displayAfterHoursChange):null);const calculatedPct=displayAfterHoursChange!==null?(displayAfterHoursChange/(ahReference??(positive(ahPrice-displayAfterHoursChange)??1)))*100:null;displayAfterHoursPct=pagePct!==null?pagePct:(Number.isFinite(ahPct)?ahPct:(Number.isFinite(apiPct)?apiPct:calculatedPct));cacheEntry.afterHoursPrice=displayAfterHoursPrice;cacheEntry.afterHoursChange=displayAfterHoursChange;cacheEntry.afterHoursPct=displayAfterHoursPct;cacheEntry.sessionDate=sessionDateForCache;sessionCache[item.ticker]=cacheEntry;try{localStorage.setItem(cacheKey,JSON.stringify(sessionCache));}catch(e){}}
+      if(ahValid){displayAfterHoursPrice=ahPrice;displayAfterHoursChange=Number.isFinite(ahChange)?ahChange:change(ahPrice,regularReferenceClose);const pagePct=numOrNull(ahQuote?.__pageAfterHoursPercent);const apiPct=numOrNull(ahQuote?.postMarketChangePercent);const ahReference=positive(numOrNull(ahQuote?.regularMarketPreviousClose))??positive(numOrNull(ahQuote?.regularMarketPrice))??positive(regularReferenceClose)??(Number.isFinite(displayAfterHoursChange)?positive(ahPrice-displayAfterHoursChange):null);const calculatedPct=displayAfterHoursChange!==null?(displayAfterHoursChange/(ahReference??(positive(ahPrice-displayAfterHoursChange)??1)))*100:null;displayAfterHoursPct=pagePct!==null?pagePct:(Number.isFinite(ahPct)?ahPct:(Number.isFinite(apiPct)?apiPct:calculatedPct));cacheEntry.afterHoursPrice=displayAfterHoursPrice;cacheEntry.afterHoursChange=displayAfterHoursChange;cacheEntry.afterHoursPct=displayAfterHoursPct;cacheEntry.sessionDate=sessionDateForCache;sessionCacheMemory[item.ticker]=cacheEntry;sessionCacheDirty=true;}
       // 20:00~04:00 ET에는 직전 애프터마켓 종료값을 날짜 변경에도 그대로 유지합니다.
       if((minute>=1200||minute<240)&&cacheEntry.afterHoursPrice!==undefined){displayAfterHoursPrice=cacheEntry.afterHoursPrice;displayAfterHoursChange=cacheEntry.afterHoursChange??null;displayAfterHoursPct=cacheEntry.afterHoursPct??null;}
     }catch(ahError){console.warn(`${item.ticker} Yahoo After-hours quote 조회 실패`,ahError);}
@@ -933,6 +934,9 @@ async function refreshAll(){
   $('status').classList.remove('error-note');
   $('status').parentElement.querySelector('.live-dot').classList.remove('active');
   let success=0,fail=0;
+  // 세션 캐시는 갱신당 한 번만 읽고 메모리에서 공유합니다.
+  sessionCacheDirty=false;
+  try{sessionCacheMemory=JSON.parse(localStorage.getItem(SESSION_CACHE_KEY)||'{}')||{};}catch(e){sessionCacheMemory={};}
 
   // 시가총액 갱신과 야간선물 조회를 병렬로 시작합니다.
   // 이전에는 시가총액 조회가 끝난 뒤, 긴 종목 목록을 6개씩 순서대로 처리해
@@ -1001,6 +1005,8 @@ async function refreshAll(){
   await Promise.all(Array.from({length:8},()=>worker()));
   // EWY가 늦더라도 다른 차트 로딩을 막지 않으며, 전체 상태 집계 전에 완료를 확인합니다.
   await ewyTask;
+  // 여러 종목에서 변경된 세션 캐시는 모든 조회가 끝난 뒤 한 번만 저장합니다.
+  if(sessionCacheDirty){try{localStorage.setItem(SESSION_CACHE_KEY,JSON.stringify(sessionCacheMemory));}catch(e){}}
 
   updateSummary();
   $('updated').textContent=`${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 갱신`;
