@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -840,15 +840,57 @@ function headlineStockQuote(item,series){
   return {price:item.last,delta:item.delta,pct:item.pct,label:'최근 정규장 종가'};
 }
 function renderOne(item,series){if(series.inactive){item.inactive=true;item.last=null;item.delta=null;item.pct=null;item.prev=null;item.preMarketPrice=item.preMarketDelta=item.preMarketPct=null;item.regularMarketPrice=item.regularMarketDelta=item.regularMarketPct=null;item.afterMarketPrice=item.afterMarketDelta=item.afterMarketPct=item.afterMarketTime=null;dataById.set(item.id,series);if(item.card){const card=item.card,container=$(`chart-${item.id}`);card.querySelector('.quote-close').textContent=blank;card.querySelector('.quote-change').textContent=series.status||'거래 종료';card.querySelector('.quote-change').className='quote-change neutral';card.querySelector('.quote-date').textContent=`${series.date||''} ${series.reason||''}`.trim();container.innerHTML=`<div class=\'chart-empty\'>${series.status||'거래 종료'} · 신규 시세 없음</div>`;card.querySelector('.chart-note').textContent='거래 종료 종목 · 마지막 거래 가격은 참고용';card.querySelector('.bar-count').textContent='실시간 거래량 순위 및 세션 시세 제외';}return;}if(series.nightFutures){item.last=series.current;item.delta=series.delta;item.pct=series.pct;item.prev=series.reference;dataById.set(item.id,series);if(!item.card)return;const card=item.card,container=$(`chart-${item.id}`);const close=card.querySelector('.quote-close'),change=card.querySelector('.quote-change'),date=card.querySelector('.quote-date');close.textContent=closeText(item,series.current);change.textContent=`${series.delta>0?'+':''}${fmt(series.delta,item.decimals??2)} · ${series.pct>0?'+':''}${series.pct.toFixed(2)}%`;change.className=`quote-change ${colorClass(series.delta)}`;date.textContent='KRED 공개 시세 · 조회 시점';item.last=series.current;item.delta=series.delta;item.pct=series.pct;item.prev=series.reference;dataById.set(item.id,series);container.innerHTML='';if(!window.LightweightCharts){container.innerHTML='<div class=\'chart-empty\'>차트 라이브러리를 불러오지 못했습니다.</div>';return;}const chart=LightweightCharts.createChart(container,{width:container.clientWidth,height:container.clientHeight,layout:{background:{type:'solid',color:chartTheme().bg},textColor:chartTheme().text,fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif',fontSize:10},grid:{vertLines:{color:chartTheme().grid},horzLines:{color:chartTheme().grid}},rightPriceScale:{borderColor:chartTheme().border,scaleMargins:{top:.12,bottom:.1}},timeScale:{borderColor:chartTheme().border,timeVisible:true,secondsVisible:false,rightOffset:1,barSpacing:12,minBarSpacing:2},localization:{locale:'ko-KR',priceFormatter:p=>fmt(p,item.decimals??2)}});const line=chart.addLineSeries({color:series.delta>=0?'#d84a4a':'#3478d4',lineWidth:2,priceLineVisible:false,lastValueVisible:true});line.setData(series.values);chart.timeScale().fitContent();charts.set(item.id,{chart,line});const toolbar=card.querySelector('.chart-range-toolbar');if(toolbar)toolbar.style.display='none';card.querySelector('.chart-note').textContent='야간 세션 18:00~06:00 · 기준가와 최신가만 표시 (분봉 이력 API 미확인)';card.querySelector('.bar-count').textContent='야간 세션 전체 시간축 · 실제 분봉 이력 미제공';return;}if(series.tradingView){const card=item.card,container=$(`chart-${item.id}`);container.innerHTML='';const isKospi=item.id==='kospi200night';const title=isKospi?'코스피200 야간선물':'코스닥150 야간선물';const url=isKospi?'https://kred.dev/ko/kospi-200-night-futures':'https://kred.dev/ko/kosdaq-150-night-futures';card.querySelector('.quote-close').textContent='KRED 실시간 차트';card.querySelector('.quote-change').textContent='실시간 가격·등락은 아래 차트에서 확인';card.querySelector('.quote-change').className='quote-change neutral';card.querySelector('.quote-date').textContent='KRED 데이터';const frame=document.createElement('iframe');frame.className='kred-frame';frame.title=title+' 실시간 시세 및 차트';frame.loading='eager';frame.referrerPolicy='strict-origin-when-cross-origin';frame.allow='fullscreen';frame.src=url;container.appendChild(frame);card.querySelector('.chart-note').textContent='KRED 원본 페이지 · 실제 야간선물 시세와 분봉 차트';card.querySelector('.bar-count').textContent='KRED 페이지에서 1분 · 5분 · 10분 · 15분 · 30분 선택';const toolbar=card.querySelector('.chart-range-toolbar');if(toolbar)toolbar.style.display='none';return;}const toolbar=item.card.querySelector('.chart-range-toolbar');if(toolbar){toolbar.style.display='flex';toolbar.querySelectorAll('button').forEach(btn=>{btn.onclick=()=>{toolbar.querySelectorAll('button').forEach(b=>b.classList.toggle('selected',b===btn));const chartObj=charts.get(item.id)?.chart;if(!chartObj)return;const now=Math.floor(Date.now()/1000),days={'1M':31,'3M':92,'6M':184,'YTD':Math.ceil((Date.now()-new Date(new Date().getFullYear(),0,1).getTime())/86400000),'1Y':366,'ALL':730}[btn.dataset.range]||92;const to=series.values[series.values.length-1].time;let from;if(btn.dataset.range==='ALL'){from=series.values[0].time;}else if(btn.dataset.range==='YTD'){from=Math.max(series.values[0].time,Math.floor(new Date(new Date().getFullYear(),0,1).getTime()/1000));}else{from=Math.max(series.values[0].time,to-days*86400);}const visibleCount=series.values.filter(v=>v.time>=from&&v.time<=to).length;const plotWidth=Math.max(120,(chartObj.options().width||chartObj.chartElement?.clientWidth||item.card.querySelector('.chart-area').clientWidth)-58);chartObj.applyOptions({timeScale:{minBarSpacing:.25,barSpacing:Math.max(.25,Math.min(7,plotWidth/Math.max(1,visibleCount))),rightOffset:0}});chartObj.timeScale().setVisibleRange({from,to});};});}dataById.set(item.id,series);const vals=series.values,last=vals[vals.length-1],prev=vals[vals.length-2],delta=last.value-prev.value,pct=prev.value?delta/prev.value*100:null;item.last=last.value;item.delta=delta;item.pct=pct;item.prev=prev.value;if(item.unit==='stock'){item.preMarketPrice=series.preMarketPrice;item.preMarketDelta=series.preMarketChange;item.preMarketPct=series.preMarketChangePercent;item.regularMarketPrice=series.displayAfterHoursPrice;item.regularMarketDelta=series.displayAfterHoursChange;item.regularMarketPct=series.displayAfterHoursPercent;item.afterMarketPrice=series.postMarketPrice;item.afterMarketDelta=series.postMarketChange;item.afterMarketPct=series.postMarketChangePercent;item.afterMarketTime=series.postMarketTime||null;}const card=item.card;const close=card.querySelector('.quote-close'),change=card.querySelector('.quote-change'),date=card.querySelector('.quote-date');const headline=item.unit==='stock'?headlineStockQuote(item,series):{price:last.value,delta,pct,label:`${dateString(last.time)} 종가`};close.textContent=closeText(item,headline.price);change.textContent=`${changeText(item,headline.delta)} · ${pctText(headline.pct)}`;change.className=`quote-change ${colorClass(headline.delta)}`;date.textContent=item.unit==='stock'?headline.label:`${dateString(last.time)} 종가`;const container=$(`chart-${item.id}`);if(deferChartUntilVisible(item,series,container))return;container.innerHTML='';if(!window.LightweightCharts){container.innerHTML='<div class="chart-empty">차트 라이브러리를 불러오지 못했습니다.</div>';return;}const chart=LightweightCharts.createChart(container,{width:container.clientWidth,height:container.clientHeight,layout:{background:{type:'solid',color:chartTheme().bg},textColor:chartTheme().text,fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif',fontSize:10},grid:{vertLines:{color:chartTheme().grid},horzLines:{color:chartTheme().grid}},rightPriceScale:{borderColor:chartTheme().border,scaleMargins:{top:.12,bottom:.1}},timeScale:{borderColor:chartTheme().border,timeVisible:false,secondsVisible:false,rightOffset:1,barSpacing:7,minBarSpacing:.25},crosshair:{vertLine:{color:'#a9b9cc',width:1,style:2},horzLine:{color:'#a9b9cc',width:1,style:2}},localization:{locale:'ko-KR',priceFormatter:p=>item.percentChart?`${p>0?'+':''}${p.toFixed(1)}%`:fmt(p,item.decimals??2)}});let points=vals;if(item.percentChart){const base=vals[0].value;points=vals.map(v=>({time:v.time,value:(v.value/base-1)*100}));}const seriesLine=chart.addLineSeries({color:last.value>=prev.value?'#d83b4b':'#2874d0',lineWidth:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:true,priceFormat:item.percentChart?{type:'custom',formatter:p=>`${p>0?'+':''}${p.toFixed(1)}%`,minMove:.1}:{type:'price',precision:item.decimals??2,minMove:item.unit==='yield'?.001:.01}});seriesLine.setData(points);chart.timeScale().fitContent();charts.set(item.id,{chart,container,series:seriesLine});const initialFrom=Math.max(vals[0].time,Math.floor(Date.now()/1000)-92*86400);try{chart.timeScale().setVisibleRange({from:initialFrom,to:last.time});}catch(e){}const foot=card.querySelector('.bar-count');foot.textContent=`${vals.length}봉 · ${dateString(vals[0].time)} ~ ${dateString(last.time)}`;}
-async function refreshMarketCaps(){
-  const symbols=[...new Set([...M7_TICKERS,'SKHY','EWY',...AI_LEADERS.map(x=>x.ticker),...HYPERSCALERS.map(x=>x.ticker),...SEMICONDUCTOR_UNIVERSE.map(x=>x.ticker)])];
-  const target=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols.join(','))}&overnightPrice=true`;
+async function refreshMarketCaps(quoteReadyByTicker=new Map()){
+  // 첫 화면에 필요한 종목의 quote를 작은 묶음으로 분할합니다.
+  // 큰 단일 응답의 지연이 모든 종목의 첫 가격 표시를 막지 않도록 각 묶음 도착 즉시 반영합니다.
+  const symbols=[...new Set([
+    ...all.filter(item=>item.unit==='stock'&&item.ticker).map(item=>item.ticker),
+    ...M7_TICKERS,'SKHY','EWY',...AI_LEADERS.map(x=>x.ticker),
+    ...HYPERSCALERS.map(x=>x.ticker),...SEMICONDUCTOR_UNIVERSE.map(x=>x.ticker)
+  ].filter(Boolean))];
+  const chunks=[];
+  for(let i=0;i<symbols.length;i+=20)chunks.push(symbols.slice(i,i+20));
+  let updated=0;
+  const applyQuotes=quotes=>{
+    const byTicker=new Map((quotes||[]).map(q=>[q.symbol,q]));
+    (quotes||[]).forEach(quote=>{
+      all.filter(item=>item.ticker===quote.symbol).forEach(item=>{
+        item.yahooQuote=quote;
+        const cap=Number(quote.marketCap);
+        if(Number.isFinite(cap)&&cap>0){item.marketCap=cap;updated++;}
+        if(item.unit!=='stock'||dataById.has(item.id))return;
+        const price=Number(quote.regularMarketPrice),previous=Number(quote.regularMarketPreviousClose);
+        const quoteTime=Number(quote.regularMarketTime),now=Math.floor(Date.now()/1000);
+        if(!Number.isFinite(price)||price<=0||!Number.isFinite(previous)||previous<=0)return;
+        if(Number.isFinite(quoteTime)&&quoteTime>0&&(quoteTime>now+30||now-quoteTime>7*86400))return;
+        const delta=quote.regularMarketChange!==null&&quote.regularMarketChange!==undefined&&Number.isFinite(Number(quote.regularMarketChange))?Number(quote.regularMarketChange):price-previous;
+        const pct=quote.regularMarketChangePercent!==null&&quote.regularMarketChangePercent!==undefined&&Number.isFinite(Number(quote.regularMarketChangePercent))?Number(quote.regularMarketChangePercent):delta/previous*100;
+        item.last=price;item.delta=delta;item.pct=pct;item.prev=previous;
+        if(item.card){
+          const close=item.card.querySelector('.quote-close'),change=item.card.querySelector('.quote-change'),date=item.card.querySelector('.quote-date');
+          if(close)close.textContent=closeText(item,price);
+          if(change){change.textContent=`${changeText(item,delta)} · ${pctText(pct)}`;change.className=`quote-change ${colorClass(delta)}`;}
+          if(date)date.textContent='정규장 시세 · 세션 상세 조회 중';
+        }
+      });
+    });
+    updateSummary();
+    return byTicker;
+  };
   try{
-    const response=await fetchProxy(target,12000);
-    if(!response.ok)throw new Error(`Yahoo quote HTTP ${response.status}`);
-    const json=await response.json();const quotes=json?.quoteResponse?.result||[];let updated=0;
-    const byTicker=new Map(quotes.map(q=>[q.symbol,q]));
-    quotes.forEach(quote=>{const matches=all.filter(x=>x.ticker===quote.symbol);matches.forEach(item=>{item.yahooQuote=quote;const cap=Number(quote.marketCap);if(Number.isFinite(cap)&&cap>0){item.marketCap=cap;updated++;}});});
+    await Promise.all(chunks.map(async chunk=>{
+      try{
+        const target=`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(chunk.join(','))}&overnightPrice=true`;
+        const response=await fetchProxy(target,12000);
+        if(!response.ok)throw new Error(`Yahoo quote HTTP ${response.status}`);
+        const json=await response.json();
+        const byTicker=applyQuotes(json?.quoteResponse?.result||[]);
+        chunk.forEach(ticker=>quoteReadyByTicker.get(ticker)?.resolve(byTicker.get(ticker)||null));
+      }catch(error){
+        chunk.forEach(ticker=>quoteReadyByTicker.get(ticker)?.resolve(null));
+        console.warn('Yahoo quote 묶음 조회 실패:',error);
+      }
+    }));
     const previousSelection=SEMICONDUCTOR_UNIVERSE.filter(x=>x.summaryActive).map(x=>x.id).join(',');
     const ranked=[...SEMICONDUCTOR_UNIVERSE].sort((a,b)=>{
       const av=Number.isFinite(a.marketCap)&&a.marketCap>0?a.marketCap:null,bv=Number.isFinite(b.marketCap)&&b.marketCap>0?b.marketCap:null;
@@ -865,7 +907,7 @@ async function refreshMarketCaps(){
     updateSummary();return updated;
   }catch(error){
     console.warn('시가총액 조회 실패:',error);
-    // 첫 조회 실패 시에도 카드 영역은 비우지 않고 기존 우선순위의 16개를 표시합니다.
+    quoteReadyByTicker.forEach(entry=>entry.resolve(null));
     const previousSelection=SEMICONDUCTOR_UNIVERSE.filter(x=>x.summaryActive).map(x=>x.id).join(',');
     if(!SEMICONDUCTOR_UNIVERSE.some(x=>x.summaryActive))SEMICONDUCTOR_UNIVERSE.slice(0,16).forEach(x=>x.summaryActive=true);
     const nextSelection=SEMICONDUCTOR_UNIVERSE.filter(x=>x.summaryActive).map(x=>x.id).join(',');
@@ -938,10 +980,13 @@ async function refreshAll(){
   sessionCacheDirty=false;
   try{sessionCacheMemory=JSON.parse(localStorage.getItem(SESSION_CACHE_KEY)||'{}')||{};}catch(e){sessionCacheMemory={};}
 
-  // 시가총액 갱신과 야간선물 조회를 병렬로 시작합니다.
-  // 이전에는 시가총액 조회가 끝난 뒤, 긴 종목 목록을 6개씩 순서대로 처리해
-  // 국내 야간선물이 큐의 맨 마지막에서야 조회되는 문제가 있었습니다.
-  const marketCapsTask=refreshMarketCaps();
+  // 종목별 quote 완료 신호를 먼저 준비합니다. 각 quote 묶음이 도착하면 해당 종목만 즉시 후속 처리합니다.
+  const quoteReadyByTicker=new Map();
+  [...new Set(all.filter(item=>item.unit==='stock'&&item.ticker).map(item=>item.ticker))].forEach(ticker=>{
+    let resolve;const promise=new Promise(r=>{resolve=r;});
+    quoteReadyByTicker.set(ticker,{promise,resolve});
+  });
+  const marketCapsTask=refreshMarketCaps(quoteReadyByTicker);
   const priorityItems=groups.flatMap(group=>group.items)
     .filter(item=>item.source==='kredNightFutures');
   // EWY는 국내/미국 지수 로딩 대기열 뒤에 밀리지 않도록 별도 우선 요청으로 즉시 시작합니다.
@@ -952,7 +997,7 @@ async function refreshAll(){
     try{
       // Start daily/intraday chart requests immediately; fetchSeries waits for the
       // shared quote task only when it reaches the session-quote calculation.
-      if(item.unit==='stock')item.yahooQuotePromise=marketCapsTask;
+      if(item.unit==='stock')item.yahooQuotePromise=quoteReadyByTicker.get(item.ticker)?.promise||marketCapsTask;
       const series=await fetchSeries(item);
       renderOne(item,series);
       success++;
@@ -985,36 +1030,8 @@ async function refreshAll(){
     updateSummary();
   })();
 
-  // 일괄 Yahoo quote가 도착하면 2년 일봉/5일 분봉 조회가 끝나기 전이라도
-  // 종목의 정규장 기준 현재가를 카드와 요약에 먼저 표시합니다.
-  // 이후 fetchSeries/renderOne이 세션별 가격과 차트 데이터로 최종 갱신합니다.
-  const fastQuotePaintTask=marketCapsTask.then(()=>{
-    const now=Math.floor(Date.now()/1000);
-    all.forEach(item=>{
-      if(item.unit!=='stock'||!item.yahooQuote||dataById.has(item.id))return;
-      const q=item.yahooQuote;
-      const price=Number(q.regularMarketPrice);
-      const previous=Number(q.regularMarketPreviousClose);
-      const quoteTime=Number(q.regularMarketTime);
-      if(!Number.isFinite(price)||price<=0||!Number.isFinite(previous)||previous<=0)return;
-      // 미래 timestamp 또는 지나치게 오래된 시세는 첫 화면 임시 표시에도 사용하지 않습니다.
-      if(Number.isFinite(quoteTime)&&quoteTime>0&&(quoteTime>now+30||now-quoteTime>7*86400))return;
-      const delta=q.regularMarketChange!==null&&q.regularMarketChange!==undefined&&Number.isFinite(Number(q.regularMarketChange))?Number(q.regularMarketChange):price-previous;
-      const pct=q.regularMarketChangePercent!==null&&q.regularMarketChangePercent!==undefined&&Number.isFinite(Number(q.regularMarketChangePercent))?Number(q.regularMarketChangePercent):delta/previous*100;
-      item.last=price;item.delta=delta;item.pct=pct;item.prev=previous;
-      if(item.card){
-        const close=item.card.querySelector('.quote-close');
-        const change=item.card.querySelector('.quote-change');
-        const date=item.card.querySelector('.quote-date');
-        if(close)close.textContent=closeText(item,price);
-        if(change){change.textContent=`${changeText(item,delta)} · ${pctText(pct)}`;change.className=`quote-change ${colorClass(delta)}`;}
-        if(date)date.textContent='정규장 시세 · 상세 데이터 조회 중';
-      }
-    });
-    updateSummary();
-  }).catch(error=>console.warn('초기 시세 우선 표시 실패:',error));
 
-  await Promise.all([marketCapsTask,Promise.all(priorityItems.map(loadItem)),ndxTask,fastQuotePaintTask]);
+  await Promise.all([Promise.all(priorityItems.map(loadItem)),ndxTask]);
 
   $('status').textContent='핵심 지수 조회 완료 · 나머지 차트 불러오는 중…';
   const priorityIds=new Set([...priorityItems.map(item=>item.id),'ewy']);
@@ -1032,7 +1049,7 @@ async function refreshAll(){
       await loadItem(item);
     }
   }
-  await Promise.all(Array.from({length:8},()=>worker()));
+  await Promise.all([Promise.all(Array.from({length:8},()=>worker())),marketCapsTask]);
   // EWY가 늦더라도 다른 차트 로딩을 막지 않으며, 전체 상태 집계 전에 완료를 확인합니다.
   await ewyTask;
   // 여러 종목에서 변경된 세션 캐시는 모든 조회가 끝난 뒤 한 번만 저장합니다.
