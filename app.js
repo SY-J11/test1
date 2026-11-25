@@ -1,6 +1,6 @@
 'use strict';
 // Yahoo Finance chart API is accessed through the companion Cloudflare Worker.
-const PROXY_BASE='https://test1.mcraft-tiger-574.workers.dev';
+const PROXY_BASE='https://pmc.mcraft-tiger-574.workers.dev';
 // Yahoo 요청은 동일 종목이 여러 카드에 반복 등장할 수 있어 브라우저 메모리에서
 // 짧게 공유합니다. 화면의 기존 no-store 동작은 유지하면서 중복 네트워크 요청만 줄입니다.
 const proxyResponseCache=new Map();
@@ -670,7 +670,7 @@ if(item.unit==='stock'){
     const preToday=dayBars.filter(b=>b.minute>=240&&b.minute<570);
     const regularToday=dayBars.filter(b=>b.minute>=570&&b.minute<960);
     const postToday=dayBars.filter(b=>b.minute>=960&&b.minute<1200);
-    const quote=item.yahooQuote||{};
+    if(item.unit==='stock'&&item.yahooQuotePromise)await item.yahooQuotePromise;const quote=item.yahooQuote||{};
     const quoteToday=(priceKey,timeKey)=>dateAt(quote[timeKey])===today?numOrNull(quote[priceKey]):null;
     const metaToday=(priceKey,timeKey)=>dateAt(sessionMeta[timeKey])===today?numOrNull(sessionMeta[priceKey]):dateAt(meta[timeKey])===today?numOrNull(meta[priceKey]):null;
     const positive=value=>Number.isFinite(value)&&value>0?value:null;
@@ -950,9 +950,9 @@ async function refreshAll(){
 
   async function loadItem(item){
     try{
-      // Stock session fields (including Yahoo Overnight) are attached by the quote refresh.
-      // Wait for that request before fetching/rendering stock session values to avoid a race.
-      if(item.unit==='stock')await marketCapsTask;
+      // Start daily/intraday chart requests immediately; fetchSeries waits for the
+      // shared quote task only when it reaches the session-quote calculation.
+      if(item.unit==='stock')item.yahooQuotePromise=marketCapsTask;
       const series=await fetchSeries(item);
       renderOne(item,series);
       success++;
